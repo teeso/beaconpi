@@ -270,6 +270,7 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 	log.Printf("DEBUG: Results into bracketing loop: %#v", results)
 
 	for i := 0; i < len(results); i++ {
+		log.Printf("Checking step %d: %v", i, results[i].Bracket)
 		if results[i].Bracket.Equal(currtime) {
 			// Add to current set
 			tempresults = append(tempresults, results[i])
