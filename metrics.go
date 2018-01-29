@@ -50,7 +50,7 @@ func getDBMForBeacon(beacon int) (int, error) {
 	err = db.QueryRow(`
 		select txpower
 		from ibeacons
-		where id = ?`, beacon).Scan(&rxpow)
+		where id = $1`, beacon).Scan(&rxpow)
 	if err != nil {
 		return 0, err
 	}
