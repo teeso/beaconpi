@@ -278,6 +278,7 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 			donext = true
 		}
 		if donext || i == len(results) - 1 {
+			donext = false
 			// Do trilat for this tempresults set
 			tempLocResults := trilatCollect(tempresults, edgeloc, dbm)
 			output = append(output, tempLocResults)
