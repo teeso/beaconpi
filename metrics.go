@@ -158,6 +158,7 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	}
 	log.Printf("DEBUG: Results into trilat: %#v", results)
   trilatresults := trilat(results, requestData.EdgeLocations, power)
+	log.Printf("DEBUG: Results out of trilat: %#v", trilatresults)
 	
 	encoder := json.NewEncoder(w)
 	if err = encoder.Encode(trilatresults); err != nil{
@@ -285,7 +286,6 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 			tempresults = append(tempresults, results[i])
 		}
 	}
-	log.Printf("results %#v\n", results)
 	// TODO(brad)
 	return output
 }
