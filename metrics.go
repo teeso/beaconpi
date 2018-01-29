@@ -330,6 +330,7 @@ func MetricStart(metrics *MetricsParameters) {
 	mp = *metrics
 	mux := http.NewServeMux()
 	mux.HandleFunc("/history/short", beaconShortHistory)
+	mux.HandleFunc("/history/trilateration", beaconTrilateration)
 
 	handler := cors.Default().Handler(mux)
 	log.Fatal(http.ListenAndServe(":" + metrics.Port, handler))
