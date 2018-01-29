@@ -156,9 +156,9 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Server failure", 500)
 		return
 	}
-
+	log.Println("DEBUG: Results into trilat: %#v", results)
   trilatresults := trilat(results, requestData.EdgeLocations, power)
-
+	
 	encoder := json.NewEncoder(w)
 	if err = encoder.Encode(trilatresults); err != nil{
 		log.Println("Failed to encode results", err)
@@ -265,6 +265,9 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 	var tempresults []result
 	donext := false
 	currtime := results[0].Bracket
+
+	log.Println("DEBUG: Results into bracketing loop: %#v", results)
+
 	for i := 0; i < len(results); i++ {
 		if results[i].Bracket.Equal(currtime) {
 			// Add to current set
