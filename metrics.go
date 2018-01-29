@@ -113,6 +113,7 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	rows, err := db.Query(`
 		select date_trunc('second', min(datetime)) as time_bracket, 
     datetime, edgenodeid, rssi
+		from beacon_log
 		where edgenodeid in ($1) 
 		and beaconid = $2 and datetime > $3 and datetime < $4
     group by floor(extract(epoch from beacon_log.datetime)/ 1), datetime, beaconid, edgenodeid, rssi
