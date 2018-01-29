@@ -263,7 +263,7 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 	sort.Slice(results, func(i, j int) bool {
 		earlier := results[i].Bracket.Before(results[j].Bracket)
 		return earlier || (results[i].Bracket.Equals(results[j].Bracket) 
-				&& results[i].Edge < results[j].Edge
+				&& results[i].Edge < results[j].Edge)
 	})
 	log.Printf("Results, sorted: %#v", results)
 	var tempresults []result
