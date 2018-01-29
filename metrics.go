@@ -261,7 +261,9 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 	// thereafter, this should ensure the edgeloc slice is also in
 	// the correct order.
 	sort.Slice(results, func(i, j int) bool {
-		return results[i].Bracket.Before(results[j].Bracket) || results[i].Edge < results[j].Edge
+		earlier := results[i].Bracket.Before(results[j].Bracket)
+		return earlier || (results[i].Bracket.Equals(results[j].Bracket) 
+				&& results[i].Edge < results[j].Edge
 	})
 	log.Printf("Results, sorted: %#v", results)
 	var tempresults []result
