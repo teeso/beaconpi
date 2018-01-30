@@ -3,20 +3,8 @@ var dateFormat = require('dateformat');
 var trilat = require('trilat');
 var Chart = require('chart.js');
 
-var target = 'http://3508data.soe.uoguelph.ca:32967'
+var targeturl = 'http://3508data.soe.uoguelph.ca:32967'
 
-/*
-function getTrilateration(position1, position2, position3) {
-  var input = [
-  //      X     Y     R 
-  [position1.x, position1.y, position1.distance],
-  [position2.x, position2.y, position2.distance],
-  [position3.x, position3.y, position3.distance]];
-  console.log(input);
-  var output = trilat(input);
-  return { x: output[0], y: output[1] };
-}
-*/
 function getTrilateration(positions) {
   positions.forEach((p) => {
     p.distance = p.distance || Number.POSITIVE_INFINITY;
@@ -239,6 +227,10 @@ function applyDistances(actdist) {
   getCenterAndMove(edges, distances, circleloc);
 }
 
+function updateLocationsTrilat(block) {
+  console.log(block);
+}
+
 function averageDistances(filtered) {
   var result = {};
   var count = {};
@@ -263,11 +255,12 @@ var blocks = []
 function processData(data) {
   // On fetch
   if (data) {
-    helddata = data;
+    //TODO(brad) we only allow one time step right now
+    helddata = data[0];
     cursor = 0;
     blocks = [];
     var second = helddata.map((o) => {
-      var date = new Date(o.Datetime);
+      var date = new Date(o.Bracket);
       return date.getSeconds();
     })
     var cursec = second[0];
@@ -292,17 +285,13 @@ function processData(data) {
     setTimeout(startLoop, 0);
     return;
   }  
-  // Process current block
-  var distances = calculateDistance(blocks[cursor]);
-  var filtered = distances;
-  if (dofilter) {
-    filtered = filterDistances(distances, edgeindexmap);
-  }
 
   // Chart update
-  chartsUpdateDistances(filtered, edgeindexmap, 50);
-  var average = averageDistances(filtered);
-  applyDistances(average);
+  //chartsUpdateDistances(filtered, edgeindexmap, 50);
+  // Update location with current block
+  updateLocationsTrilat(block[i]);
+
+
   cursor++;
   if (cursor >= blocks.length) {
     // This should work
@@ -347,18 +336,20 @@ var dofilter = true;
 var justupdated = true;
 
 function startLoop() {
-  var d = new Date();
-  // Subtract 5 seconds
-  d = new Date(d - 5000);
-  var n = d.toISOString();
-  n = dateFormat(n, 'isoDateTime');
-  // If you change the edges make sure you change the edge index map
+  var dnow = new Date();
+  // Scaling Factor (px per meter)
+  var scale = 100.0; 
+  var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
+
   var bodyobj = {
     "Edges": edgenums, 
-    "Beacon": beaconid, 
-    "Since": n
+    "Beacon": beaconid,
+    "EdgeLocations": edgelocs,
+    "Since": dateFormat(new Date(dnow - 6000), 'isoDateTime'),
+    "Before": dateFormat(new Date(dnow - 5000), 'isoDateTime'),
+    "Filter": "average"
   };
-  fetch(target + '/history/short', {
+  fetch(targeturl + '/history/trilateration', {
     method: "POST",
     body: JSON.stringify(bodyobj)
   }).then(function(res) {

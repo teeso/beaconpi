@@ -46,6 +46,7 @@ func getDBMForBeacon(beacon int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer db.Close()
 	var rxpow int
 	err = db.QueryRow(`
 		select txpower
@@ -110,6 +111,7 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Server failure", 500)
 		return
 	}
+	defer db.Close()
 	rows, err := db.Query(`
 		select date_trunc('second', min(datetime)) as time_bracket, 
     datetime, edgenodeid, rssi
