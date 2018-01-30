@@ -165,16 +165,8 @@ function setupSVGClick(svgele) {
   });
 }
 
-function getCenterAndMove(nodes, distances, nodemove) {
-  var positions = [];
-  for (var i in nodes) {
-    positions.push({x: nodes[i].x, y: nodes[i].y, distance: distances[i]});
-  }
-  var loc = getTrilateration(positions);
-  if (loc.x == Number.POSITIVE_INFINITY || loc.y == Number.POSITIVE_INFINITY) {
-    return;
-  }
-  nodemove.move(loc.x, loc.y);
+function getCenterAndMove(beacon) {
+  circleloc.move(beacon.Loc[0], beacon.Loc[1]);
 };
 
 var circleloc;
@@ -228,7 +220,8 @@ function applyDistances(actdist) {
 }
 
 function updateLocationsTrilat(block) {
-  console.log(block);
+  getCenterAndMove(block);
+  //console.log(block);
 }
 
 function averageDistances(filtered) {
@@ -255,8 +248,7 @@ var blocks = []
 function processData(data) {
   // On fetch
   if (data) {
-    //TODO(brad) we only allow one time step right now
-    helddata = data[0];
+    helddata = data;
     cursor = 0;
     blocks = [];
     var second = helddata.map((o) => {
@@ -272,7 +264,7 @@ function processData(data) {
         blocks.push([]);
         cursec = second[i];
       }
-      blocks[block].push(helddata[i])
+      blocks[block] = helddata[i]
     }
   }
 
@@ -289,13 +281,16 @@ function processData(data) {
   // Chart update
   //chartsUpdateDistances(filtered, edgeindexmap, 50);
   // Update location with current block
-  updateLocationsTrilat(block[i]);
+  
+  // Fix scaling first
+  blocks[i].Loc = blocks[i].Loc.map(l => l * scale);
+  updateLocationsTrilat(blocks[i]);
 
 
   cursor++;
   if (cursor >= blocks.length) {
     // This should work
-    setTimeout(startLoop, 0);
+    setTimeout(startLoop, 1000);
     return;
   }
 
@@ -334,11 +329,11 @@ var beaconid = 3;
 var dofilter = true;
 // First doesn't count
 var justupdated = true;
+var scale = 100.0; 
 
 function startLoop() {
   var dnow = new Date();
   // Scaling Factor (px per meter)
-  var scale = 100.0; 
   var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
 
   var bodyobj = {

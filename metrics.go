@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	SIGNAL_PROP_CONSTANT = 2
+	SIGNAL_PROP_CONSTANT = 3
 )
 
 type MetricsParameters struct {
