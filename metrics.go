@@ -1,16 +1,15 @@
 package beaconpi
 
 import (
-	"math"
-	"sort"
-	"net/http"
-	"log"
 	"encoding/json"
-	"time"
-	_ "github.com/lib/pq"
-	"github.com/lib/pq"
 	"github.com/co60ca/trilateration"
+	"github.com/lib/pq"
 	"github.com/rs/cors"
+	log "github.com/sirupsen/logrus"
+	"net/http"
+	"sort"
+	"time"
+	"database/sql"
 )
 
 const (
@@ -18,24 +17,24 @@ const (
 )
 
 type MetricsParameters struct {
-	Port string
-	DriverName string
+	Port           string
+	DriverName     string
 	DataSourceName string
 }
 
 type locationResults struct {
-  Bracket time.Time
-  Loc []float64
-  Edge []int
-  Distance []float64
-  Confidence int
+	Bracket    time.Time
+	Loc        []float64
+	Edge       []int
+	Distance   []float64
+	Confidence int
 }
 
 type result struct {
-  Bracket time.Time
-  Datetime time.Time
-  Edge int
-  Rssi int
+	Bracket  time.Time
+	Datetime time.Time
+	Edge     int
+	Rssi     int
 }
 
 var mp MetricsParameters
@@ -61,8 +60,9 @@ func getDBMForBeacon(beacon int) (int, error) {
 // Used for sorting edge/edge location by id
 type sortableedge struct {
 	edges []int
-	locs [][]float64
+	locs  [][]float64
 }
+
 func (s sortableedge) Len() int {
 	return len(s.edges)
 }
@@ -76,24 +76,24 @@ func (s sortableedge) Swap(i, j int) {
 	s.locs[i], s.locs[j] = s.locs[j], s.locs[i]
 }
 
-
 func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	requestData := struct {
 		Edges []int
-    // Location of edges in order of Edges member above second dim x,y,z
-    EdgeLocations [][]float64
-		Beacon int
-		Since string
-		Before string
-    Filter string
-    // Randomized string for keeping history
-    Clientid string
-    // TODO(brad) use this
-    BracketSeconds int
+		// Location of edges in order of Edges member
+		// above second dim x,y,z
+		EdgeLocations [][]float64
+		Beacon        int
+		Since         string
+		Before        string
+		Filter        string
+		// Randomized string for keeping history
+		Clientid string
+		// TODO(brad) use this
+		BracketSeconds int
 	}{}
 	if err := decoder.Decode(&requestData); err != nil {
-		log.Println("Received invalid request", err)
+		log.Infof("Received invalid request", err)
 		http.Error(w, "Invalid request", 400)
 		return
 	}
@@ -107,23 +107,24 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
 	db, err := dbconfig.openDB()
 	if err != nil {
-		log.Println("Error opening DB", err)
+		log.Infof("Error opening DB", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
 	defer db.Close()
 	rows, err := db.Query(`
-		select date_trunc('second', min(datetime)) as time_bracket, 
-    datetime, edgenodeid, rssi
+		select date_trunc('second', min(datetime)) as time_bracket,
+		datetime, edgenodeid, rssi
 		from beacon_log
 		where edgenodeid = any($1::int[]) 
 		and beaconid = $2 and datetime > $3 and datetime < $4
-    group by floor(extract(epoch from beacon_log.datetime)/ 1), datetime, beaconid, edgenodeid, rssi
+    		group by floor(extract(epoch from beacon_log.datetime)/ 1), 
+		datetime, beaconid, edgenodeid, rssi
 		order by time_bracket, datetime, edgenodeid
 	`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since,
-  requestData.Before)
+		requestData.Before)
 	if err != nil {
-		log.Println("Error getting query results", err)
+		log.Infof("Error getting query results", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
@@ -133,38 +134,40 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 
 	for rows.Next() {
 		var row result
-		if err = rows.Scan(&row.Bracket, &row.Datetime, &row.Edge, &row.Rssi); err != nil {
-			log.Println("Error scanning rows", err)
+		if err = rows.Scan(&row.Bracket, &row.Datetime,
+			&row.Edge, &row.Rssi); err != nil {
+			log.Infof("Error scanning rows", err)
 			http.Error(w, "Server failure", 500)
 			return
 		}
 		results = append(results, row)
 	}
 
-  switch requestData.Filter {
-    case "average":
-      results = filterAverage(results)
-    default:
-      log.Println("Received invalid request, unknown filter")
-      http.Error(w, "Invalid request", 400)
-      return
-  }
+	switch requestData.Filter {
+	case "average":
+		results = filterAverage(results)
+	default:
+		log.Infof("Received invalid request, unknown filter")
+		http.Error(w, "Invalid request", 400)
+		return
+	}
 
 	// Resort incase filtering has changed sorting order
 
-	power, err := getDBMForBeacon(requestData.Beacon)
-	if err != nil {
-		log.Println("Error fetching beacon power by id", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
-	log.Printf("DEBUG: Results into trilat: %#v", results)
-  trilatresults := trilat(results, requestData.EdgeLocations, power)
-	log.Printf("DEBUG: Results out of trilat: %#v", trilatresults)
-	
+// We don't use the power anymore, just the model
+//	power, err := getDBMForBeacon(requestData.Beacon)
+//	if err != nil {
+//		log.Infof("Error fetching beacon power by id", err)
+//		http.Error(w, "Server failure", 500)
+//		return
+//	}
+	log.Debugf("Results into trilat: %#v", results)
+	trilatresults := trilat(results, requestData.EdgeLocations, db)
+	log.Debugf("Results out of trilat: %#v", trilatresults)
+
 	encoder := json.NewEncoder(w)
-	if err = encoder.Encode(trilatresults); err != nil{
-		log.Println("Failed to encode results", err)
+	if err = encoder.Encode(trilatresults); err != nil {
+		log.Infof("Failed to encode results", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
@@ -173,19 +176,19 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
 	decoder := json.NewDecoder(req.Body)
 	requestData := struct {
-		Edges []int
+		Edges  []int
 		Beacon int
-		Since string
+		Since  string
 	}{}
 	if err := decoder.Decode(&requestData); err != nil {
-		log.Println("Received invalid request", err)
+		log.Infof("Received invalid request", err)
 		http.Error(w, "Invalid request", 400)
 		return
 	}
 	dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
 	db, err := dbconfig.openDB()
 	if err != nil {
-		log.Println("Error opening DB", err)
+		log.Infof("Error opening DB", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
@@ -199,7 +202,7 @@ func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
 		order by datetime
 	`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since)
 	if err != nil {
-		log.Println("Error getting query results", err)
+		log.Infof("Error getting query results", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
@@ -207,8 +210,8 @@ func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
 
 	type result struct {
 		Datetime string
-		Edge int
-		Rssi int
+		Edge     int
+		Rssi     int
 	}
 
 	var results []result
@@ -217,7 +220,7 @@ func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
 		var row result
 		var date time.Time
 		if err = rows.Scan(&date, &row.Edge, &row.Rssi); err != nil {
-			log.Println("Error scanning rows", err)
+			log.Infof("Error scanning rows", err)
 			http.Error(w, "Server failure", 500)
 			return
 		}
@@ -226,14 +229,14 @@ func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
 	}
 
 	encoder := json.NewEncoder(w)
-	if err = encoder.Encode(results); err != nil{
-		log.Println("Failed to encode results", err)
+	if err = encoder.Encode(results); err != nil {
+		log.Infof("Failed to encode results", err)
 		http.Error(w, "Server failure", 500)
 		return
 	}
 }
 
-func trilatCollect(tempresults []result, edgeloc [][]float64, dbm int) locationResults {
+func trilatCollect(tempresults []result, edgeloc [][]float64, db *sql.DB) locationResults {
 	var task trilateration.Parameters3
 	copy(task.Loc[0][:], edgeloc[0][:])
 	copy(task.Loc[1][:], edgeloc[1][:])
@@ -242,22 +245,26 @@ func trilatCollect(tempresults []result, edgeloc [][]float64, dbm int) locationR
 	var distances []float64
 
 	for i, r := range tempresults {
-		dist := math.Pow(10, float64(dbm - r.Rssi) / float64(10 * SIGNAL_PROP_CONSTANT))
+		dist, err := distanceModel(r.Rssi, r.Edge, db)
+		if err != nil {
+			// TODO(brad) don't panic here
+			log.Panicf("Failed to get model, possible missing edge %s", err);
+		}
 		task.Dis[i] = dist
 		edges = append(edges, r.Edge)
 		distances = append(distances, dist)
 	}
 	loc, conf := task.SolveTrilat3()
 	return locationResults{
-		Bracket: tempresults[0].Bracket,
-		Loc: loc,
-		Edge: edges,
-		Distance: distances,
+		Bracket:    tempresults[0].Bracket,
+		Loc:        loc,
+		Edge:       edges,
+		Distance:   distances,
 		Confidence: conf,
 	}
 }
 
-func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
+func trilat(results []result, edgeloc [][]float64, db *sql.DB) []locationResults {
 	var output []locationResults
 	// Sort such that the time brackets are in order and the edge nodes
 	// thereafter, this should ensure the edgeloc slice is also in
@@ -266,15 +273,14 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 		earlier := results[i].Bracket.Before(results[j].Bracket)
 		return earlier || (results[i].Bracket.Equal(results[j].Bracket) && results[i].Edge < results[j].Edge)
 	})
-	log.Printf("Results, sorted: %#v", results)
+	log.Debugf("Results, sorted: %#v", results)
 	var tempresults []result
 	donext := false
 	currtime := results[0].Bracket
 
-	log.Printf("DEBUG: Results into bracketing loop: %#v", results)
+	log.Debugf("Results into bracketing loop: %#v", results)
 
 	for i := 0; i < len(results); i++ {
-		log.Printf("Checking step %d: %v", i, results[i].Bracket)
 		if results[i].Bracket.Equal(currtime) {
 			// Add to current set
 			tempresults = append(tempresults, results[i])
@@ -282,11 +288,10 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 			donext = true
 		}
 		currtime = results[i].Bracket
-		if donext || i == len(results) - 1 {
-			log.Printf("Switching on %d donext: %v", i, donext)
+		if donext || i == len(results)-1 {
 			donext = false
 			// Do trilat for this tempresults set
-			tempLocResults := trilatCollect(tempresults, edgeloc, dbm)
+			tempLocResults := trilatCollect(tempresults, edgeloc, db)
 			output = append(output, tempLocResults)
 			// New tempresults, for the last loop it wont matter
 			tempresults = nil
@@ -294,7 +299,6 @@ func trilat(results []result, edgeloc [][]float64, dbm int) []locationResults {
 			tempresults = append(tempresults, results[i])
 		}
 	}
-	// TODO(brad)
 	return output
 }
 
@@ -317,8 +321,8 @@ func filterAverage(results []result) []result {
 			edgetoint[r.Edge] = uint32(len(edgetoint))
 			edgeint = uint32(len(edgetoint) - 1)
 		}
-		code := uint64(tint) | uint64(edgeint) << 32
-		if codeint, ok = codetoint[code] ; !ok {
+		code := uint64(tint) | uint64(edgeint)<<32
+		if codeint, ok = codetoint[code]; !ok {
 			codetoint[code] = len(codetoint)
 			codeint = codetoint[code]
 			// Make a new entry in out
@@ -337,7 +341,6 @@ func filterAverage(results []result) []result {
 	}
 	return out
 }
-
 func MetricStart(metrics *MetricsParameters) {
 	mp = *metrics
 	mux := http.NewServeMux()
@@ -345,5 +348,12 @@ func MetricStart(metrics *MetricsParameters) {
 	mux.HandleFunc("/history/trilateration", beaconTrilateration)
 
 	handler := cors.Default().Handler(mux)
-	log.Fatal(http.ListenAndServe(":" + metrics.Port, handler))
+	// Logging
+	log.SetLevel(log.DebugLevel)
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	customFormatter.FullTimestamp = true
+	log.SetFormatter(customFormatter)
+	// Start
+	log.Fatal(http.ListenAndServe(":"+metrics.Port, handler))
 }

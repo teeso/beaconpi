@@ -1,53 +1,53 @@
 // Beacon Pi, a edge node system for iBeacons and Edge nodes made of Pi
 // Copyright (C) 2017  Bradley Kennedy
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 package beaconpi
 
 import (
-	"os"
 	"crypto/tls"
-	"log"
-	"net"
 	"flag"
 	"io/ioutil"
+	"log"
+	"net"
+	"os"
 	//"database/sql"
 )
 
 var db *dbHandler
 
 type ServerConfig struct {
-	X509cert string
-	X509key string
+	X509cert   string
+	X509key    string
 	Drivername string
-	DSN string
+	DSN        string
 }
 
 func GetFlags() (out ServerConfig) {
 
 	flag.StringVar(&out.X509cert, "serv-cert", "",
-			"Required: x509 server public certificate file path")
+		"Required: x509 server public certificate file path")
 	flag.StringVar(&out.X509key, "serv-key", "",
-			"Required: x509 server private key file path")
+		"Required: x509 server private key file path")
 	flag.StringVar(&out.Drivername, "db-driver-name", "",
-			"Required: The database driver name")
+		"Required: The database driver name")
 	flag.StringVar(&out.DSN, "db-datasource-name", "",
-			"Required: The database datasource name, may be multiple tokes")
+		"Required: The database datasource name, may be multiple tokes")
 	flag.Parse()
 	if out.X509cert == "" || out.X509key == "" ||
-			out.Drivername == "" || out.DSN == "" {
+		out.Drivername == "" || out.DSN == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -82,10 +82,10 @@ func StartServer(x509cert, x509key, drivername, dsn string, end chan struct{}) {
 
 	for {
 		select {
-			case <- end:
-				log.Println("Recieved end message, stopping...")
-				return
-			default:
+		case <-end:
+			log.Println("Recieved end message, stopping...")
+			return
+		default:
 		}
 		conn, err := ln.Accept()
 
@@ -98,18 +98,18 @@ func StartServer(x509cert, x509key, drivername, dsn string, end chan struct{}) {
 }
 
 func writeResponseAndClose(conn net.Conn, resp *BeaconResponsePacket, close bool) {
-		respbytes, err := resp.MarshalBinary()
-		if err != nil {
-			log.Println("Failed to marshal data to response:", err)
-		}
-		n, err := conn.Write(respbytes)
-		if n != len(respbytes) || err != nil {
-			log.Printf("Failed to write response. Len written: %d of %d" +
-				". Error was %s", err)
-		}
-		if close {
-			conn.Close()
-		}
+	respbytes, err := resp.MarshalBinary()
+	if err != nil {
+		log.Println("Failed to marshal data to response:", err)
+	}
+	n, err := conn.Write(respbytes)
+	if n != len(respbytes) || err != nil {
+		log.Printf("Failed to write response. Len written: %d of %d"+
+			". Error was %s", err)
+	}
+	if close {
+		conn.Close()
+	}
 }
 
 func handleConnection(conn net.Conn) {
@@ -120,7 +120,7 @@ func handleConnection(conn net.Conn) {
 	var resp BeaconResponsePacket
 	resp.Flags = CURRENT_VERSION
 	if err != nil {
-		log.Println("Message failed to read with:" , err)
+		log.Println("Message failed to read with:", err)
 		resp.Flags |= RESPONSE_INVALID
 		// TODO different flags based on the errors
 		writeResponseAndClose(conn, &resp, true)
@@ -136,9 +136,8 @@ func handleConnection(conn net.Conn) {
 		return
 	}
 
-
 	// Client request beacon updates
-	if message.Flags & REQUEST_BEACON_UPDATES != 0 {
+	if message.Flags&REQUEST_BEACON_UPDATES != 0 {
 		db, err := db.openDB()
 		if err != nil {
 			log.Println("Failed to open DB", err)
@@ -165,7 +164,7 @@ func handleConnection(conn net.Conn) {
 		writeResponseAndClose(conn, &resp, true)
 		return
 	}
-	if message.Flags & REQUEST_CONTROL_LOG != 0 {
+	if message.Flags&REQUEST_CONTROL_LOG != 0 {
 		db, err := db.openDB()
 		if err != nil {
 			log.Println("Failed to open DB", err)
@@ -189,7 +188,7 @@ func handleConnection(conn net.Conn) {
 		}
 		writeResponseAndClose(conn, &resp, true)
 		return
-	} else if message.Flags & REQUEST_CONTROL_COMPLETE != 0 {
+	} else if message.Flags&REQUEST_CONTROL_COMPLETE != 0 {
 		db, err := db.openDB()
 		if err != nil {
 			log.Println("Failed to open DB", err)

@@ -1,16 +1,16 @@
 // Beacon Pi, a edge node system for iBeacons and Edge nodes made of Pi
 // Copyright (C) 2017  Bradley Kennedy
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -19,13 +19,13 @@
 package beaconpi
 
 import (
-	"fmt"
-	"os/exec"
-	"log"
 	"bufio"
 	"bytes"
-	"encoding/hex"
 	"encoding/binary"
+	"encoding/hex"
+	"fmt"
+	"log"
+	"os/exec"
 	"time"
 )
 
@@ -39,7 +39,7 @@ func ProduceBLEAdv(bleadv chan *bytes.Buffer) {
 	log.Println("Starting hcidump")
 	hcidump := exec.Command("hcidump", "--raw")
 	read, err := hcidump.StdoutPipe()
-	if err :=	hcidump.Start(); err != nil {
+	if err := hcidump.Start(); err != nil {
 		log.Printf("Error starting hcidump: %s", err)
 		return
 	}
@@ -78,8 +78,8 @@ func ProduceBLEAdv(bleadv chan *bytes.Buffer) {
 
 type BeaconRecord struct {
 	BeaconData
-	Datetime    time.Time
-	Rssi        int16
+	Datetime time.Time
+	Rssi     int16
 }
 
 func ProcessIBeacons(client *clientinfo, brs chan BeaconRecord) {
@@ -122,7 +122,7 @@ func ProcessIBeacons(client *clientinfo, brs chan BeaconRecord) {
 		}
 		var rssi int8
 		// NOTE: we throw away the 21st bit
-		binary.Read(reader, binary.BigEndian, &rssi);
+		binary.Read(reader, binary.BigEndian, &rssi)
 		// Read the real RSSI
 		if err := binary.Read(reader, binary.BigEndian, &rssi); err != nil {
 			log.Printf("Failed to parse Rssi: %s", err)

@@ -1,16 +1,16 @@
 // Beacon Pi, a edge node system for iBeacons and Edge nodes made of Pi
 // Copyright (C) 2017  Bradley Kennedy
-// 
+//
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
@@ -19,22 +19,22 @@
 package beaconpi
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"log"
-	"sync"
-	"time"
-	"bytes"
-	"strings"
 	"os/exec"
 	"strconv"
-	"encoding/json"
-	"encoding/hex"
+	"strings"
+	"sync"
+	"time"
 )
 
 const (
-	TIMEOUT_BEACON_REFRESH time.Duration = 1*time.Minute
-	TIMEOUT_BEACON time.Duration = 2*time.Second
+	TIMEOUT_BEACON_REFRESH time.Duration = 1 * time.Minute
+	TIMEOUT_BEACON         time.Duration = 2 * time.Second
 )
 
 type clientinfo struct {
@@ -43,8 +43,8 @@ type clientinfo struct {
 	tlsconf *tls.Config
 	// Key to nothing, key is "UUID,major,minor"
 	nodes map[string]struct{}
-	host string
-	uuid Uuid
+	host  string
+	uuid  Uuid
 }
 
 func StartClient() {
@@ -80,7 +80,7 @@ func StartClient() {
 	client := clientinfo{}
 	client.nodes = make(map[string]struct{})
 	client.tlsconf = conf
-	client.host = servhost+":"+servport
+	client.host = servhost + ":" + servport
 	uuiddec, err := hex.DecodeString(clientuuid)
 	if err != nil {
 		log.Fatal("uuid is not valid hex, do not include -")
@@ -105,32 +105,32 @@ func clientLoop(client *clientinfo) {
 
 	for {
 		select {
-			case _ = <-timeruuid.C:
-				go requestBeacons(client)
+		case _ = <-timeruuid.C:
+			go requestBeacons(client)
 
-			case _ = <-timerbeacon.C:
-				log.Println("Sending data to server due to timeout")
-				// Send and reset
-				go sendData(client, datapacket)
-				// Reset data
-				currentbeacons = make(map[string]int)
-				datapacket = new(BeaconLogPacket)
-				datapacket.Flags = CURRENT_VERSION
-				copy(datapacket.Uuid[:], client.uuid[:])
+		case _ = <-timerbeacon.C:
+			log.Println("Sending data to server due to timeout")
+			// Send and reset
+			go sendData(client, datapacket)
+			// Reset data
+			currentbeacons = make(map[string]int)
+			datapacket = new(BeaconLogPacket)
+			datapacket.Flags = CURRENT_VERSION
+			copy(datapacket.Uuid[:], client.uuid[:])
 
-			case tempbr := <-brs:
-				beaconstr := tempbr.BeaconData.String()
-				var i int
-				var ok bool
-				if i, ok = currentbeacons[beaconstr]; !ok {
-					datapacket.Beacons = append(datapacket.Beacons, tempbr.BeaconData)
-					i = len(datapacket.Beacons)-1
-					currentbeacons[beaconstr] = i
-				}
-				datapacket.Logs = append(datapacket.Logs, BeaconLog{
-					Datetime: tempbr.Datetime,
-					Rssi: tempbr.Rssi,
-					BeaconIndex: uint16(i)})
+		case tempbr := <-brs:
+			beaconstr := tempbr.BeaconData.String()
+			var i int
+			var ok bool
+			if i, ok = currentbeacons[beaconstr]; !ok {
+				datapacket.Beacons = append(datapacket.Beacons, tempbr.BeaconData)
+				i = len(datapacket.Beacons) - 1
+				currentbeacons[beaconstr] = i
+			}
+			datapacket.Logs = append(datapacket.Logs, BeaconLog{
+				Datetime:    tempbr.Datetime,
+				Rssi:        tempbr.Rssi,
+				BeaconIndex: uint16(i)})
 		}
 		if len(datapacket.Beacons) == MAX_LOGS {
 			log.Println("Sending data to server due to full queue")
@@ -215,7 +215,7 @@ func readUpdates(client *clientinfo, buff *bytes.Buffer) {
 		log.Printf("Failed to Unmarshal response packet: %s", err)
 		return
 	}
-	if brp.Flags & RESPONSE_BEACON_UPDATES != 0 {
+	if brp.Flags&RESPONSE_BEACON_UPDATES != 0 {
 		splitnl := strings.Split(brp.Data, "\n")
 		client.Lock()
 		defer client.Unlock()
@@ -225,7 +225,7 @@ func readUpdates(client *clientinfo, buff *bytes.Buffer) {
 		}
 		log.Printf("New beacon list: \n%#v", client.nodes)
 		log.Println("Completed parsing response from server")
-	} else if brp.Flags & RESPONSE_SYSTEM != 0 {
+	} else if brp.Flags&RESPONSE_SYSTEM != 0 {
 		handleSystem(client, &brp)
 	}
 }
