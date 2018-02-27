@@ -21,26 +21,26 @@ func PathLoss(rssi, bias, k, gamma float64) float64 {
 	return pathLossFunction(bias, k, gamma)(rssi)
 }
 
-type pathmodelParams struct {
-	bias float64
-	k float64
-	gamma float64
+type PathmodelParams struct {
+	Bias float64
+	K float64
+	Gamma float64
 }
 
-func getModelByEdge(edge int, db*sql.DB) (pathmodelParams, error) {
-	var params pathmodelParams
+func getModelByEdge(edge int, db*sql.DB) (PathmodelParams, error) {
+	var params PathmodelParams
 	err := db.QueryRow(`
 		select a.bias, a.k, a.gamma
 		from models a, edge_node b
 		where b.id = $1 and b.model = a.id
-	`, edge).Scan(&params.bias, &params.k, &params.gamma)
+	`, edge).Scan(&params.Bias, &params.K, &params.Gamma)
 	if err != nil {
 		return params, err
 	}
 	return params, nil
 }
 
-var modelcache map[int]pathmodelParams
+var modelcache map[int]PathmodelParams
 var modellock sync.Mutex
 
 func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
@@ -48,12 +48,12 @@ func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
 	defer modellock.Unlock()
 
 	if modelcache == nil {
-		modelcache = make(map[int]pathmodelParams)
+		modelcache = make(map[int]PathmodelParams)
 	}
 	// Check if the cache has the param
 	if v, ok := modelcache[edge]; ok {
-		log.Println(PathLoss(float64(rssi), v.bias, v.k, v.gamma))
-		return PathLoss(float64(rssi), v.bias, v.k, v.gamma), nil
+		log.Println(PathLoss(float64(rssi), v.Bias, v.K, v.Gamma))
+		return PathLoss(float64(rssi), v.Bias, v.K, v.Gamma), nil
 	}
 	// Look it up
 	v, err := getModelByEdge(edge, db)
@@ -62,5 +62,5 @@ func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
 			err.Error())
 	}
 	modelcache[edge] = v
-	return PathLoss(float64(rssi), v.bias, v.k, v.gamma), nil
+	return PathLoss(float64(rssi), v.Bias, v.K, v.Gamma), nil
 }

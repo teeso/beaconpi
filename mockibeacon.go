@@ -14,15 +14,15 @@ type MockConfig struct {
 	// For simplicity I provide all Edges data but give a selector, this
 	// lets multiple running producers share the same config file
 	EdgeSelected int
-	PathLossModel MockPathLossModel
+	PathLossModel PathmodelParams
 }
 
-type MockBeacon {
+type MockBeacon struct {
 	BeaconRecord
 	Location []float64
 }
 
-type MockEdge {
+type MockEdge struct {
 	Location []float64
 }
 
