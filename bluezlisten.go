@@ -93,7 +93,7 @@ func ProcessIBeacons(client *clientinfo, brs chan BeaconRecord) {
 		if index == -1 {
 			continue
 		}
-		buffer = buffer[index+4:]
+		buffer = buffer[index+4:] // There is one byte we wanna skip
 		if len(buffer) < 22 {
 			log.Println("Buffer was not long enough for", buffer)
 			continue
@@ -121,8 +121,8 @@ func ProcessIBeacons(client *clientinfo, brs chan BeaconRecord) {
 			continue
 		}
 		var rssi int8
-		// NOTE: we throw away the 21st bit
-		binary.Read(reader, binary.BigEndian, &rssi)
+		// NOTE: we throw away the 21st bit, which is the send power
+		binary.Read(reader, binary.BigEndian, &rssi);
 		// Read the real RSSI
 		if err := binary.Read(reader, binary.BigEndian, &rssi); err != nil {
 			log.Printf("Failed to parse Rssi: %s", err)

@@ -5,35 +5,6 @@ var Chart = require('chart.js');
 
 var targeturl = 'http://3508data.soe.uoguelph.ca:32967'
 
-function getTrilateration(positions) {
-  positions.forEach((p) => {
-    p.distance = p.distance || Number.POSITIVE_INFINITY;
-  });
-  var midpointx = positions.reduce(function(a, b) {
-    return Math.max(a.x || a, b.x);
-  })/2 + positions.reduce(function(a, b) {
-    return Math.min(a.x || a, b.x);
-  })/2;
-  var midpointy = positions.reduce(function(a, b) {
-    return Math.max(a.y || a, b.y);
-  })/2 + positions.reduce(function(a, b) {
-    return Math.min(a.y || a, b.y);
-  })/2
-
-  var closest = 0;
-  var closestval = positions[0].distance;
-  for (var i in positions) {
-    if (closestval > positions[i].distance) {
-      closestval = positions[i].distance;
-      closest = i;
-    }
-  }
-
-  var x = (3*positions[closest].x + midpointx) / 4 
-  var y = (3*positions[closest].y + midpointy) / 4 
-  return { x: x, y: y };
-}
-
 var dps = [];
 var dbl = [];
 var chart;
@@ -88,13 +59,14 @@ function enableCharts(elements) {
   chart = chartt
 }
 
-function chartsUpdateDistances(data, inputmap, maxlen) {
+function chartsUpdateDistances(data, edges, bracket, inputmap, maxlen) {
   for (var i in data) {
     var cur = data[i];
-    var dataset = dps[inputmap[cur.Edge]];
-    dataset.push(cur.distance);
-    if (cur.Edge == 1) {
-      dbl.push(cur.Datetime);
+    var dataset = dps[inputmap[edges[i]]];
+    dataset.push(cur);
+    // Push the current date once
+    if (i == 0) {
+      dbl.push(bracket);
     }
 
     if (dataset.length > maxlen) {
@@ -105,14 +77,6 @@ function chartsUpdateDistances(data, inputmap, maxlen) {
     }
   }
   chart.update()
-}
-
-// Standard Normal variate using Box-Muller transform.
-function randnorm() {
-  var u = 0, v = 0;
-  while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
-  while(v === 0) v = Math.random();
-  return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
 }
 
 // Mouse target
@@ -141,7 +105,7 @@ Circle.prototype.move = function(x, y) {
   this.y = y;
   this.element.setAttribute('cx', x);
   this.element.setAttribute('cy', y);
-},
+}
 Circle.prototype.addToSVG = function(id) {
   var svgwin = document.getElementById(id);
   svgwin.appendChild(this.element);
@@ -165,25 +129,38 @@ function setupSVGClick(svgele) {
   });
 }
 
+function makeLine(svg, x1, y1, x2, y2) {
+  var line = document.createElementNS("http://www.w3.org/2000/svg", 'line');
+  line.setAttribute('y1', y1);
+  line.setAttribute('y2', y2);
+  line.setAttribute('x1', x1);
+  line.setAttribute('x2', x2);
+  line.setAttribute('stroke-width', 2);
+  line.setAttribute('stroke', 'grey');
+  svg.appendChild(line);
+}
+
+function drawLinesSVG(svgele, pixels, todist, units) {
+  var svg = document.getElementById(svgele);
+  var rect = svg.getBoundingClientRect();
+  var width = rect.width;
+  var height = rect.height;
+  // Vertical
+  for (var w = pixels; w < width; w += pixels) {
+    makeLine(svg, w, 0, w, height);
+  }
+  for (var h = pixels; h < height; h += pixels) {
+    makeLine(svg, 0, h, width, h);
+  }
+
+}
+
 function getCenterAndMove(beacon) {
   circleloc.move(beacon.Loc[0], beacon.Loc[1]);
 };
 
 var circleloc;
 var edges = [];
-var units = 'cm';
-
-function calculateDistance(block) {
-  // Edge, Datetime, Rssi
-  var txpower = -70;
-  var signalpropconst = 2;
-  for (var n in block) {
-    block[n].distance = Math.pow(10, 
-        (txpower - block[n].Rssi) / (10 * signalpropconst))
-  }
-  return block
-}
-
 
 // Setup for filters
 var filters = [];
@@ -193,8 +170,8 @@ function setupFilters(count) {
   var coefficients = iirCalculator.lowpass({
         order: 4,
         characteristic: 'butterworth',
-        Fs: 10,
-        Fc: 0.5,
+        Fs: 1,
+        Fc: 0.1,
         gain: 0,
         preGain: false
   });
@@ -203,20 +180,11 @@ function setupFilters(count) {
   }
 }
 
-function filterDistances(distances, key) {
+function filterDistances(distances) {
   for (var i in distances) {
-    var filteri = key[distances[i].Edge];
-    distances[i].distance = filters[filteri].singleStep(distances[i].distance);
+    distances[i]= filters[i].singleStep(distances[i]);
   }
   return distances
-}
-
-function applyDistances(actdist) {
-  var distances = [];
-  for (var key in actdist) {
-    distances[edgeindexmap[key]] = actdist[key];
-  }
-  getCenterAndMove(edges, distances, circleloc);
 }
 
 function updateLocationsTrilat(block) {
@@ -245,6 +213,9 @@ function averageDistances(filtered) {
 var helddata = null;
 var cursor = 0;
 var blocks = []
+
+var timeoutid = 0;
+
 function processData(data) {
   // On fetch
   if (data) {
@@ -269,32 +240,37 @@ function processData(data) {
   }
 
   if (cursor >= blocks.length) {
-    setTimeout(processData, 0);
+    timeoutid = setTimeout(processData, 0);
     return;
   }
   if (justupdated) {
     justupdated = false;
-    setTimeout(startLoop, 0);
+    timeoutid = setTimeout(startLoop, 0);
     return;
   }  
 
   // Chart update
-  //chartsUpdateDistances(filtered, edgeindexmap, 50);
   // Update location with current block
   
   // Fix scaling first
   blocks[i].Loc = blocks[i].Loc.map(l => l * scale);
   updateLocationsTrilat(blocks[i]);
 
+  var distances = blocks[i].Distance;
+  var filtereddistances = filterDistances(distances.slice());
+
+  chartsUpdateDistances(dofilter ? filtereddistances : distances,
+                        blocks[i].Edge, blocks[i].Bracket,
+                        edgeindexmap, 25);
 
   cursor++;
   if (cursor >= blocks.length) {
     // This should work
-    setTimeout(startLoop, 1000);
+    timeoutid = setTimeout(startLoop, 1000);
     return;
   }
 
-  setTimeout(processData, 1000);
+  timeoutid = setTimeout(processData, 1000);
 
 }
 
@@ -309,6 +285,8 @@ function submitForm(event) {
   var te = eval(edgeselement.value);
   addEdges(te);
   beaconid = tb;
+  window.clearTimeout(timeoutid)
+  startLoop()
 }
 
 function reverseMap(map) {
@@ -329,7 +307,8 @@ var beaconid = 3;
 var dofilter = true;
 // First doesn't count
 var justupdated = true;
-var scale = 100.0; 
+// Scale is the number of pixels to the metre
+var scale = 50.0; 
 
 function startLoop() {
   var dnow = new Date();
@@ -354,6 +333,7 @@ function startLoop() {
   });
 }
 
+
 function addEdges(lEdgenums) {
   justupdated = !justupdated;
   edgeindexmap = {};
@@ -375,9 +355,10 @@ function addEdges(lEdgenums) {
 }
 
 function startup() {
+  drawLinesSVG('svgwin', scale, 1, 'm');
   circleloc = new Circle(200, 200, 15);
   circleloc.element.setAttribute('class', 'circle-slide');
-  addEdges([1, 2, 3, 4, 5]);
+  addEdges([1, 2, 3]);
   beaconid = 3;
   circleloc.addToSVG('svgwin');
   setupSVGClick('svgwin');
