@@ -12,10 +12,6 @@ import (
 	"database/sql"
 )
 
-const (
-	SIGNAL_PROP_CONSTANT = 3
-)
-
 type MetricsParameters struct {
 	Port           string
 	DriverName     string
@@ -355,5 +351,6 @@ func MetricStart(metrics *MetricsParameters) {
 	customFormatter.FullTimestamp = true
 	log.SetFormatter(customFormatter)
 	// Start
+        log.Infof("Starting metrics server on %v", metrics.Port)
 	log.Fatal(http.ListenAndServe(":"+metrics.Port, handler))
 }
