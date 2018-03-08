@@ -5,13 +5,14 @@ import (
         "flag"
 )
 
-func getflags() (out MetricsParameters) {
+func getflags() (out beaconpi.MetricsParameters) {
 	flag.StringVar(&out.DriverName, "db-driver-name", "",
 		"Required: The database driver name")
 	flag.StringVar(&out.DataSourceName, "db-datasource-name", "",
 		"Required: The database datasource name, may be multiple tokes")
         flag.StringVar(&out.Port, "port", "", "Required: Port for serving http")
         flag.Parse()
+        return
 }
 
 func main() {
