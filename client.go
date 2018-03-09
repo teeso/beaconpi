@@ -104,6 +104,7 @@ func StartClient() {
 		log.Fatal("uuid is not valid hex, do not include -")
 	}
 	copy(client.uuid[:], uuiddec)
+	log.Printf("Client arguments %#v", client)
 	clientLoop(&client)
 }
 
