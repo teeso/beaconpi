@@ -95,6 +95,8 @@ func StartClient() {
 		tlsconf: conf,
 		host: servhost + ":" + servport,
 		nodes: make(map[string]struct{}),
+		timeoutBeaconRefresh: time.Second*time.Duration(timeoutBeaconRefresh),
+		timeoutBeacon: time.Second*time.Duration(timeoutBeacon),
 	}
 
 	uuiddec, err := hex.DecodeString(clientuuid)
