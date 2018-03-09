@@ -33,8 +33,8 @@ import (
 )
 
 const (
-	TIMEOUT_BEACON_REFRESH time.Duration = 1 * time.Minute
-	TIMEOUT_BEACON         time.Duration = 2 * time.Second
+	TIMEOUT_BEACON_REFRESH = 60
+	TIMEOUT_BEACON         = 2
 )
 
 type clientinfo struct {
@@ -45,14 +45,26 @@ type clientinfo struct {
 	nodes map[string]struct{}
 	host  string
 	uuid  Uuid
+	// Time to re request beacons from server
+	timeoutBeaconRefresh time.Duration
+	// Time to force the beacons sightings to the server
+	timeoutBeacon time.Duration
 }
 
 func StartClient() {
 
 	log.SetFlags(log.Lshortfile)
-	var servcertfile, clientcertfile, clientkeyfile, servhost string
-	var servport string
-	var clientuuid string
+	var (
+		servcertfile string
+		clientcertfile string
+		clientkeyfile string
+	  servhost string
+		servport string
+		clientuuid string
+		timeoutBeaconRefresh int
+		timeoutBeacon int
+	)
+
 
 	flag.StringVar(&servcertfile, "serv-cert-file", "", "Has trusted keys")
 	flag.StringVar(&clientcertfile, "client-cert-file", "", "")
@@ -60,6 +72,8 @@ func StartClient() {
 	flag.StringVar(&clientuuid, "client-uuid", "", "Uuid for this node, no dashes")
 	flag.StringVar(&servhost, "serv-host", "localhost", "")
 	flag.StringVar(&servport, "serv-port", DEFAULT_PORT, "")
+	flag.IntVar(&timeoutBeaconRefresh, "timeout-beacon-refresh", TIMEOUT_BEACON_REFRESH, "timeout for beacon data rerequest from server to keep freshness")
+	flag.IntVar(&timeoutBeacon, "timeout-beacon", TIMEOUT_BEACON, "timeout for beacon sightings before pushing to the server")
 	flag.Parse()
 
 	certpool := LoadFileToCert(servcertfile)
@@ -77,10 +91,12 @@ func StartClient() {
 		Certificates: []tls.Certificate{clientcert},
 	}
 
-	client := clientinfo{}
-	client.nodes = make(map[string]struct{})
-	client.tlsconf = conf
-	client.host = servhost + ":" + servport
+	client := clientinfo{
+		tlsconf: conf,
+		host: servhost + ":" + servport,
+		nodes: make(map[string]struct{}),
+	}
+
 	uuiddec, err := hex.DecodeString(clientuuid)
 	if err != nil {
 		log.Fatal("uuid is not valid hex, do not include -")
@@ -90,10 +106,11 @@ func StartClient() {
 }
 
 func clientLoop(client *clientinfo) {
-	timeruuid := time.NewTicker(TIMEOUT_BEACON_REFRESH)
-	timerbeacon := time.NewTicker(TIMEOUT_BEACON)
+	timeruuid := time.NewTicker(client.timeoutBeaconRefresh)
+	timerbeacon := time.NewTicker(client.timeoutBeacon)
 	brs := make(chan BeaconRecord, 256)
 	go ProcessIBeacons(client, brs)
+	log.Println("Init request beacons")
 	requestBeacons(client)
 
 	datapacket := new(BeaconLogPacket)
@@ -103,6 +120,7 @@ func clientLoop(client *clientinfo) {
 	// Map from uuid,major,minor to offset
 	currentbeacons := make(map[string]int)
 
+	log.Println("Start loop")
 	for {
 		select {
 		case _ = <-timeruuid.C:
