@@ -215,6 +215,7 @@ var cursor = 0;
 var blocks = []
 
 var timeoutid = 0;
+var TIMEOUT = 10000;
 
 function processData(data) {
   // On fetch
@@ -253,6 +254,7 @@ function processData(data) {
   // Update location with current block
   
   // Fix scaling first
+  var i = cursor;
   blocks[i].Loc = blocks[i].Loc.map(l => l * scale);
   updateLocationsTrilat(blocks[i]);
 
@@ -266,11 +268,11 @@ function processData(data) {
   cursor++;
   if (cursor >= blocks.length) {
     // This should work
-    timeoutid = setTimeout(startLoop, 1000);
+    timeoutid = setTimeout(startLoop, TIMEOUT);
     return;
   }
 
-  timeoutid = setTimeout(processData, 1000);
+  timeoutid = setTimeout(processData, TIMEOUT);
 
 }
 
