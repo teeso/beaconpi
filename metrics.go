@@ -85,7 +85,6 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 		Filter        string
 		// Randomized string for keeping history
 		Clientid string
-		// TODO(brad) use this
 		BracketSeconds int
 	}{}
 	if err := decoder.Decode(&requestData); err != nil {
@@ -93,6 +92,7 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Invalid request", 400)
 		return
 	}
+	log.Infof("Request data: %v", requestData)
 
 	sortedges := sortableedge{
 		requestData.Edges,
@@ -109,16 +109,16 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	}
 	defer db.Close()
 	rows, err := db.Query(`
-		select date_trunc('second', min(datetime)) as time_bracket,
-		datetime, edgenodeid, rssi
-		from beacon_log
-		where edgenodeid = any($1::int[]) 
-		and beaconid = $2 and datetime > $3 and datetime < $4
-    		group by floor(extract(epoch from beacon_log.datetime)/ 1), 
-		datetime, beaconid, edgenodeid, rssi
-		order by time_bracket, datetime, edgenodeid
+		select to_timestamp(
+			floor(extract(epoch from beacon_log.datetime)/$5)*$5)
+			as time_bracket,
+			datetime, edgenodeid, rssi
+			from beacon_log
+			where edgenodeid = any ($1::int[])
+			and beaconid = $2 and datetime > $3 and datetime < $4
+			order by time_bracket, datetime, edgenodeid;
 	`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since,
-		requestData.Before)
+		requestData.Before, requestData.BracketSeconds)
 	if err != nil {
 		log.Infof("Error getting query results", err)
 		http.Error(w, "Server failure", 500)

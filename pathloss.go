@@ -8,32 +8,29 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func pathLossFunction(bias, k, gamma float64) func(float64) float64 {
-	gammac := 10*gamma
-	bc := math.Pow(k, 1/gamma)
+func pathLossFunction(bias, gamma float64) func(float64) float64 {
 	return func(rssi float64) float64 {
-		
-		return math.Pow(10, (bias - rssi)/gammac) * bc
+		log.Info(bias, gamma, rssi)
+		return math.Pow(10, (bias - rssi)/ (10 * gamma))
 	}
 }
 
-func PathLoss(rssi, bias, k, gamma float64) float64 {
-	return pathLossFunction(bias, k, gamma)(rssi)
+func PathLoss(rssi, bias, gamma float64) float64 {
+	return pathLossFunction(bias, gamma)(rssi)
 }
 
 type PathmodelParams struct {
 	Bias float64
-	K float64
 	Gamma float64
 }
 
 func getModelByEdge(edge int, db*sql.DB) (PathmodelParams, error) {
 	var params PathmodelParams
 	err := db.QueryRow(`
-		select a.bias, a.k, a.gamma
+		select a.bias, a.gamma
 		from models a, edge_node b
 		where b.id = $1 and b.model = a.id
-	`, edge).Scan(&params.Bias, &params.K, &params.Gamma)
+	`, edge).Scan(&params.Bias, &params.Gamma)
 	if err != nil {
 		return params, err
 	}
@@ -51,10 +48,10 @@ func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
 		modelcache = make(map[int]PathmodelParams)
 	}
 	// Check if the cache has the param
-	if v, ok := modelcache[edge]; ok {
-		log.Println(PathLoss(float64(rssi), v.Bias, v.K, v.Gamma))
-		return PathLoss(float64(rssi), v.Bias, v.K, v.Gamma), nil
-	}
+// TODO(brad) after done testing use this for efficiency
+//	if v, ok := modelcache[edge]; ok {
+//		return PathLoss(float64(rssi), v.Bias, v.Gamma), nil
+//	}
 	// Look it up
 	v, err := getModelByEdge(edge, db)
 	if err != nil {
@@ -62,5 +59,5 @@ func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
 			err.Error())
 	}
 	modelcache[edge] = v
-	return PathLoss(float64(rssi), v.Bias, v.K, v.Gamma), nil
+	return PathLoss(float64(rssi), v.Bias, v.Gamma), nil
 }
