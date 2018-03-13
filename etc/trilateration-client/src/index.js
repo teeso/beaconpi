@@ -311,6 +311,7 @@ var justupdated = true;
 var scale = 50.0; 
 
 function startLoop() {
+  var now = new Date();
   var dnow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),  now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds());
   // Scaling Factor (px per meter)
   var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
