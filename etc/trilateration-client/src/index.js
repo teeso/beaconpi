@@ -321,9 +321,10 @@ function startLoop() {
     "Edges": edgenums, 
     "Beacon": beaconid,
     "EdgeLocations": edgelocs,
-    "Since": dateFormat(new Date(dnow - 6000), 'isoUtcDateTime'),
+    "Since": dateFormat(new Date(dnow - 10000), 'isoUtcDateTime'),
     "Before": dateFormat(new Date(dnow - 5000), 'isoUtcDateTime'),
-    "Filter": "average"
+    "Filter": "average",
+    "BracketSeconds": 5
   };
   fetch(targeturl + '/history/trilateration', {
     method: "POST",
