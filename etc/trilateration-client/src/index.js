@@ -3,7 +3,7 @@ var dateFormat = require('dateformat');
 var trilat = require('trilat');
 var Chart = require('chart.js');
 
-var targeturl = 'http://3508data.soe.uoguelph.ca:32967'
+var targeturl = 'EnterMetricsServerHere';
 
 var dps = [];
 var dbl = [];
