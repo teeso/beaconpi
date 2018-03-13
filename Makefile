@@ -7,7 +7,7 @@ SERVERENV = CGO=0
 CLIENTENV = GOARCH=arm64 GOOS=linux CGO=0
 
 .PHONY: all
-all: reqs build/beaconserv build/beaconclient build/metricsserv
+all: reqs build/beaconserv build/beaconclient build/metricsserv build/hcidump
 
 .PHONY: clean
 clean:
@@ -27,3 +27,6 @@ build/beaconclient:
 build/metricsserv:
 	$(SERVERENV) \
 	go build -o $@ $(SERVERFLAGS) $(PACKAGE)/metricsserv  
+build/hcidump:
+	$(SERVERENV) \
+	go build -o $@ $(SERVERFLAGS) $(PACKAGE)/mockhcidump

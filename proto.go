@@ -51,7 +51,7 @@ type BeaconLog struct {
 }
 
 type BeaconData struct {
-	Uuid  Uuid
+	Uuid  Uuid `json:"string"`
 	Major uint16
 	Minor uint16
 }
