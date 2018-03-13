@@ -214,7 +214,7 @@ var cursor = 0;
 var blocks = []
 
 var timeoutid = 0;
-var TIMEOUT = 10000;
+var TIMEOUT = 5000;
 
 function processData(data) {
   // On fetch
@@ -320,8 +320,8 @@ function startLoop() {
     "Edges": edgenums, 
     "Beacon": beaconid,
     "EdgeLocations": edgelocs,
-    "Since": dateFormat(new Date(dnow - 10000), 'isoUtcDateTime'),
-    "Before": dateFormat(new Date(dnow - 5000), 'isoUtcDateTime'),
+    "Since": dateFormat(new Date(dnow - TIMEOUT*2), 'isoUtcDateTime'),
+    "Before": dateFormat(new Date(dnow - TIMEOUT), 'isoUtcDateTime'),
     "Filter": "average",
     "BracketSeconds": 5
   };
