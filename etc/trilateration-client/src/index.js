@@ -1,6 +1,5 @@
 var Fili = require('fili');
 var dateFormat = require('dateformat');
-var trilat = require('trilat');
 var Chart = require('chart.js');
 
 var targeturl = 'EnterMetricsServerHere';
