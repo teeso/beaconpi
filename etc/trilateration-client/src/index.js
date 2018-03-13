@@ -311,8 +311,7 @@ var justupdated = true;
 var scale = 50.0; 
 
 function startLoop() {
-  var now = new Date();
-  var dnow = new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),  now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds());
+  var dnow = new Date();
   // Scaling Factor (px per meter)
   var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
 
@@ -320,8 +319,8 @@ function startLoop() {
     "Edges": edgenums, 
     "Beacon": beaconid,
     "EdgeLocations": edgelocs,
-    "Since": dateFormat(new Date(dnow - 6000), 'isoDateTime'),
-    "Before": dateFormat(new Date(dnow - 5000), 'isoDateTime'),
+    "Since": dateFormat(new Date(dnow - 6000), 'isoUtcDateTime'),
+    "Before": dateFormat(new Date(dnow - 5000), 'isoUtcDateTime'),
     "Filter": "average"
   };
   fetch(targeturl + '/history/trilateration', {
