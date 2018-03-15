@@ -8,6 +8,13 @@ var Chart = require('chart.js');
 var dps = [];
 var dbl = [];
 var chart;
+const colourbeacon = [
+  'rgba(33, 37, 41, 1)'
+  'rgba(170, 57, 57, 1)',
+  'rgba(34, 102, 102, 1)',
+  'rgba(122, 159, 53, 1)'
+]
+
 const colorsunder = [
   'rgba(255, 99, 132, 0.05)',
   'rgba(99, 255, 132, 0.05)',
@@ -228,7 +235,7 @@ function resetCursors() {
   timeoutids = timeoutids.fill(-1);
 }
 
-var TIMEOUT = 5000;
+global.TIMEOUT = 5000;
 
 function processData(data, beacon) {
   // On fetch
@@ -264,7 +271,7 @@ function processData(data, beacon) {
   
   // Fix scaling first
   var i = cursors[beacon];
-  blocks[beacon][i].Loc = blocks[beacon][i].Loc.map(l => l * scale);
+  blocks[beacon][i].Loc = blocks[beacon][i].Loc.map(l => l * SCALE);
   updateLocationsTrilat(blocks[beacon][i], beacon);
 
   var distances = blocks[beacon][i].Distance;
@@ -324,12 +331,12 @@ var beaconid = [1];
 var dofilter = true;
 // First doesn't count
 // Scale is the number of pixels to the metre
-var scale = 50.0; 
+global.SCALE = 50.0; 
 
 function startLoop(beacon) {
   var dnow = new Date();
   // Scaling Factor (px per meter)
-  var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
+  var edgelocs = edges.map(e => {return [e.x / SCALE, e.y / SCALE, 0]})
   var cbeacons = beaconid;
   if (beacon) {
     cbeacons = [beaconid[beacon]];
@@ -388,12 +395,13 @@ function addBeacons(beacons) {
     beaconidtoindex[beacons[i]] = i;
     circleloc[i] = new Circle(200, 200+50*i, 15);
     circleloc[i].element.setAttribute('class', 'circle-slide');
+    circleloc[i].element.style.fill = colourbeacon[i % colourbeacon.length];
     circleloc[i].addToSVG('svgwin');
   }
 }
 
 function startup() {
-  drawLinesSVG('svgwin', scale, 1, 'm');
+  drawLinesSVG('svgwin', SCALE, 1, 'm');
   addEdges([1, 2, 3]);
   beaconid = [1];
   addBeacons(beaconid);
