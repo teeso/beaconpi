@@ -9,7 +9,7 @@ var dps = [];
 var dbl = [];
 var chart;
 const colourbeacon = [
-  'rgba(33, 37, 41, 1)'
+  'rgba(33, 37, 41, 1)',
   'rgba(170, 57, 57, 1)',
   'rgba(34, 102, 102, 1)',
   'rgba(122, 159, 53, 1)'
