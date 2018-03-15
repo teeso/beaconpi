@@ -35,6 +35,9 @@ function enableCharts(elements) {
       borderColor: colorson[i]
     });
   }
+  if (chart != null) {
+    chart.destroy();
+  }
   var chartt = new Chart(document.getElementById('chart1'),
     {
       type: 'line',
@@ -159,7 +162,7 @@ function getCenterAndMove(beacon, circlenumber) {
   circleloc[circlenumber].move(beacon.Loc[0], beacon.Loc[1]);
 };
 
-var circleloc;
+var circleloc = [];
 var edges = [];
 
 // Setup for filters
@@ -187,7 +190,7 @@ function filterDistances(distances) {
   return distances
 }
 
-function updateLocationsTrilat(block) {
+function updateLocationsTrilat(block, beacon) {
   getCenterAndMove(block, beacon);
   //console.log(block);
 }
@@ -218,11 +221,11 @@ var timeoutids = [];
 function resetCursors() {
   var nbeacons = beaconid.length;
   cursors = Array(nbeacons);
-  cursors = cursors.map((a) => 0);
+  cursors = cursors.fill(0);
   blocks = Array(nbeacons);
-  blocks = blocks.map((a) => []);
+  blocks = blocks.fill([])
   timeoutids = Array(nbeacons);
-  timeoutids = timeoutids.map((a) => -1);
+  timeoutids = timeoutids.fill(-1);
 }
 
 var TIMEOUT = 5000;
@@ -231,7 +234,7 @@ function processData(data, beacon) {
   // On fetch
   if (data) {
     var helddata = data;
-    beacon = helddata[0].Beacon;
+    beacon = beaconidtoindex[helddata[0].Beacon];
     cursors[beacon] = 0;
     var second = helddata.map((o) => {
       var date = new Date(o.Bracket);
@@ -239,6 +242,7 @@ function processData(data, beacon) {
     })
     var cursec = second[0];
     var block = 0;
+    blocks[beacon] = [];
     blocks[beacon].push([]);
     for (var i in second) {
       if (second[i] != cursec) {
@@ -250,15 +254,10 @@ function processData(data, beacon) {
     }
   }
 
-//  if (cursor[beacon] >= blocks[beacon].length) {
-//    timeoutid = setTimeout(processData, 0);
-//    return;
-//  }
-  if (justupdated) {
-    justupdated = false;
-    timeoutids[beacon] = setTimeout(startLoop, 0);
+  if (cursors[beacon] >= blocks[beacon].length) {
+//    timeoutids[beacon] = setTimeout(processData, 0, undefined, beacon);
     return;
-  }  
+  }
 
   // Chart update
   // Update location with current block
@@ -266,13 +265,13 @@ function processData(data, beacon) {
   // Fix scaling first
   var i = cursors[beacon];
   blocks[beacon][i].Loc = blocks[beacon][i].Loc.map(l => l * scale);
-  updateLocationsTrilat(blocks[beacon][i]);
+  updateLocationsTrilat(blocks[beacon][i], beacon);
 
   var distances = blocks[beacon][i].Distance;
   var filtereddistances = filterDistances(distances.slice());
 
   // NOTE: We only display time series data for the first beacon
-  if (beaconidtoindex[beacon] == 0) {
+  if (beacon == 0) {
     chartsUpdateDistances(dofilter ? filtereddistances : distances,
                           blocks[beacon][i].Edge, blocks[beacon][i].Bracket,
                           edgeindexmap, 25);
@@ -281,10 +280,9 @@ function processData(data, beacon) {
   cursors[beacon]++;
   if (cursors[beacon] >= blocks[beacon].length) {
     // This should work
-    timeoutids[beacon] = setTimeout(startLoop, TIMEOUT);
+    timeoutids[beacon] = setTimeout(startLoop, TIMEOUT, beacon);
     return;
   }
-
   timeoutids[beacon] = setTimeout(processData, TIMEOUT, undefined, beacon);
 
 }
@@ -303,7 +301,9 @@ function submitForm(event) {
   for (var i in timeoutids) {
     window.clearTimeout(timeoutids[i])
   }
-  startLoop()
+  resetCursors();
+  addBeacons(beaconid)
+  startLoop();
 }
 
 function reverseMap(map) {
@@ -323,18 +323,22 @@ var edgenums = [];
 var beaconid = [1];
 var dofilter = true;
 // First doesn't count
-var justupdated = true;
 // Scale is the number of pixels to the metre
 var scale = 50.0; 
 
-function startLoop() {
+function startLoop(beacon) {
   var dnow = new Date();
   // Scaling Factor (px per meter)
   var edgelocs = edges.map(e => {return [e.x / scale, e.y / scale, 0]})
-  for (var i in beaconid) {
+  var cbeacons = beaconid;
+  if (beacon) {
+    cbeacons = [beaconid[beacon]];
+  }
+  for (var i = 0; i < cbeacons.length; i++) {
     var bodyobj = {
-      "Edges": edgenums, 
-      "Beacon": beaconid[i],
+      // TODO(brad)  we pick the first 3 edges here
+      "Edges": edgenums.slice(0, 3), 
+      "Beacon": cbeacons[i],
       "EdgeLocations": edgelocs,
       "Since": dateFormat(new Date(dnow - TIMEOUT*2), 'isoUtcDateTime'),
       "Before": dateFormat(new Date(dnow - TIMEOUT), 'isoUtcDateTime'),
@@ -354,7 +358,6 @@ function startLoop() {
 
 
 function addEdges(lEdgenums) {
-  justupdated = !justupdated;
   edgeindexmap = {};
   var svgroot = document.getElementById('svgwin');
   edges.forEach((e) => {
@@ -373,10 +376,15 @@ function addEdges(lEdgenums) {
   setupFilters(edges.length);
 }
 var beaconidtoindex = {};
+
 function addBeacons(beacons) {
   //TODO(brad) remove old circles
+  beaconidtoindex = {};
+  for (var i = 0; i < circleloc.length; i++) {
+    circleloc[i].element.remove()
+  }
   circleloc = [];
-  for (var i in beacons) {
+  for (var i = 0; i < beacons.length; i++) {
     beaconidtoindex[beacons[i]] = i;
     circleloc[i] = new Circle(200, 200+50*i, 15);
     circleloc[i].element.setAttribute('class', 'circle-slide');
