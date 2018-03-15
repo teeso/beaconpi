@@ -2,8 +2,8 @@ var Fili = require('fili');
 var dateFormat = require('dateformat');
 var Chart = require('chart.js');
 
-// var targeturl = 'EnterMetricsServerHere';
-var targeturl = 'http://3508data.soe.uoguelph.ca:32967';
+ var targeturl = 'EnterMetricsServerHere';
+//var targeturl = 'http://3508data.soe.uoguelph.ca:32967';
 
 var dps = [];
 var dbl = [];
