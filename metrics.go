@@ -20,6 +20,7 @@ type MetricsParameters struct {
 
 type locationResults struct {
 	Bracket    time.Time
+	Beacon     int
 	Loc        []float64
 	Edge       []int
 	Distance   []float64
@@ -160,6 +161,7 @@ func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
 	log.Debugf("Results into trilat: %#v", results)
 	trilatresults := trilat(results, requestData.EdgeLocations, db)
 	log.Debugf("Results out of trilat: %#v", trilatresults)
+	trilatresults.Beacon = requestData.Beacon
 
 	encoder := json.NewEncoder(w)
 	if err = encoder.Encode(trilatresults); err != nil {
