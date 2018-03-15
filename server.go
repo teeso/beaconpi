@@ -217,7 +217,7 @@ func handleConnection(conn net.Conn) {
 		defer db.Close()
 		control, err := dbGetControl(&message, db)
 		if err != nil {
-			log.Printf("DEBUG: Failed to get control, passing: %s", err)
+			// log.Printf("DEBUG: Failed to get control, passing: %s", err)
 		} else {
 			resp.Data = control
 			resp.Flags |= RESPONSE_SYSTEM

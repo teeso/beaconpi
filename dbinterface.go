@@ -61,7 +61,7 @@ func dbAddLogsForBeacons(pack *BeaconLogPacket, edgeid int, db *sql.DB) error {
 			(datetime, beaconid, edgenodeid, rssi)
 			VALUES
 			($1, $2, $3, $4)
-		`, row.Datetime, row.Beaconid, edgeid, row.Rssi)
+		`, row.Datetime.UTC(), row.Beaconid, edgeid, row.Rssi)
 		if err != nil {
 			return errors.New("Failed to insert into DB: " + err.Error())
 		}
