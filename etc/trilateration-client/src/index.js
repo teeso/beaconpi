@@ -2,8 +2,8 @@ var Fili = require('fili');
 var dateFormat = require('dateformat');
 var Chart = require('chart.js');
 
- var targeturl = 'EnterMetricsServerHere';
-//var targeturl = 'http://3508data.soe.uoguelph.ca:32967';
+//var targeturl = 'EnterMetricsServerHere';
+var targeturl = 'http://3508data.soe.uoguelph.ca:32967';
 
 var dps = [];
 var dbl = [];
@@ -197,7 +197,40 @@ function filterDistances(distances) {
   return distances
 }
 
+function argmin(v) {
+  var argv = Number.MAX_VALUE, argn = -1;
+  for (var i = 0; i < v.length; i++) {
+    if (v[i] < argv) {
+      argn = i;
+      argv = v[i]
+    }
+  }
+  return argn;
+}
+
+function argmax(v) {
+  var argv = Number.MIN_VALUE, argn = -1;
+  for (var i = 0; i < v.length; i++) {
+    if (v[i] > argv) {
+      argn = i;
+      argv = v[i]
+    }
+  }
+  return argn;
+}
+
+global.SNAPLATERATION = true;
+global.SNAPDIST = 0.5;
+
 function updateLocationsTrilat(block, beacon) {
+  // edges
+  if (global.SNAPLATERATION) {
+    var indexmin = argmin(block.Distance);
+    if (block.Distance[indexmin] < global.SNAPDIST) {
+      // Force location to closest
+      block.Loc = [edges[indexmin].x, edges[indexmin].y, 0];
+    }
+  }
   getCenterAndMove(block, beacon);
   //console.log(block);
 }
