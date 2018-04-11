@@ -1,0 +1,29 @@
+{"Beacons" : 
+  [
+    {
+      "Uuid": "52d8064e08ca474fb471e3610e609141",
+      "Major": 1,
+      "Minor": 1,
+      "Delay": 100,
+      "Location": [0.1, 0.2, 0.3]
+    }
+  ],
+"Edges" : 
+  [
+    {
+      "Location": [3, 0.0, 0.3]
+    }
+  ],
+"EdgeSelected": 0,
+"PathLossModel": 
+  {
+    "Bias": -30.0564,
+    "K": 9.73594e-05,
+    "Gamma": 0.536281
+  },
+"StdDevNoise": 7,
+"RandomEventK": 20,
+"RandomEventStdDev": 2,
+"Mode": 0
+
+}
