@@ -3,6 +3,7 @@ package beaconpi
 import (
 	"encoding/json"
 	"github.com/co60ca/trilateration"
+	"github.com/co60ca/webauth"
 	"github.com/lib/pq"
 	"github.com/rs/cors"
 	log "github.com/sirupsen/logrus"
@@ -341,11 +342,25 @@ func filterAverage(results []result) []result {
 	}
 	return out
 }
+
 func MetricStart(metrics *MetricsParameters) {
 	mp = *metrics
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/history/short", beaconShortHistory)
 	mux.HandleFunc("/history/trilateration", beaconTrilateration)
+
+	wa, err := webauth.OpenAuthDB(mp.DriverName, mp.DataSourceName)
+	if err != nil {
+		log.Fatalf("Failed to open DB for auth %s", err)
+	}
+	wc := webauth.AuthDBCookie{
+		Authdb: wa,
+		// TODO(brad) parameterize this)
+		RedirectLogin: "http://example.com/redirect",
+		RedirectHome: "http://example.com/home",
+	}
+	mux.Handle("/auth/login", wc.AuthAndSetCookie())
 
 	handler := cors.Default().Handler(mux)
 	// Logging
