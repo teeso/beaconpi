@@ -74,167 +74,171 @@ func (s sortableedge) Swap(i, j int) {
 	s.locs[i], s.locs[j] = s.locs[j], s.locs[i]
 }
 
-func beaconTrilateration(w http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
-	requestData := struct {
-		Edges []int
-		// Location of edges in order of Edges member
-		// above second dim x,y,z
-		EdgeLocations [][]float64
-		Beacon        int
-		Since         string
-		Before        string
-		Filter        string
-		// Randomized string for keeping history
-		Clientid string
-		BracketSeconds int
-	}{}
-	if err := decoder.Decode(&requestData); err != nil {
-		log.Infof("Received invalid request", err)
-		http.Error(w, "Invalid request", 400)
-		return
-	}
-	log.Infof("Request data: %v", requestData)
+func beaconTrilateration() http.Handler {
+	return http.HandlerFunc(func (w http.ResponseWriter, req *http.Request) {
+		decoder := json.NewDecoder(req.Body)
+		requestData := struct {
+			Edges []int
+			// Location of edges in order of Edges member
+			// above second dim x,y,z
+			EdgeLocations [][]float64
+			Beacon        int
+			Since         string
+			Before        string
+			Filter        string
+			// Randomized string for keeping history
+			Clientid string
+			BracketSeconds int
+		}{}
+		if err := decoder.Decode(&requestData); err != nil {
+			log.Infof("Received invalid request %s", err)
+			http.Error(w, "Invalid request", 400)
+			return
+		}
+		log.Infof("Request data: %v", requestData)
 
-	sortedges := sortableedge{
-		requestData.Edges,
-		requestData.EdgeLocations,
-	}
-	sort.Sort(sortedges)
+		sortedges := sortableedge{
+			requestData.Edges,
+			requestData.EdgeLocations,
+		}
+		sort.Sort(sortedges)
 
-	dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
-	db, err := dbconfig.openDB()
-	if err != nil {
-		log.Infof("Error opening DB", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
-	defer db.Close()
-	rows, err := db.Query(`
-		select to_timestamp(
-			floor(extract(epoch from beacon_log.datetime)/$5)*$5)
-			as time_bracket,
-			datetime, edgenodeid, rssi
-			from beacon_log
-			where edgenodeid = any ($1::int[])
-			and beaconid = $2 and datetime > $3 and datetime < $4
-			order by time_bracket, datetime, edgenodeid;
-	`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since,
-		requestData.Before, requestData.BracketSeconds)
-	if err != nil {
-		log.Infof("Error getting query results", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
-	defer rows.Close()
-
-	var results []result
-
-	for rows.Next() {
-		var row result
-		if err = rows.Scan(&row.Bracket, &row.Datetime,
-			&row.Edge, &row.Rssi); err != nil {
-			log.Infof("Error scanning rows", err)
+		dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
+		db, err := dbconfig.openDB()
+		if err != nil {
+			log.Infof("Error opening DB", err)
 			http.Error(w, "Server failure", 500)
 			return
 		}
-		results = append(results, row)
-	}
+		defer db.Close()
+		rows, err := db.Query(`
+			select to_timestamp(
+				floor(extract(epoch from beacon_log.datetime)/$5)*$5)
+				as time_bracket,
+				datetime, edgenodeid, rssi
+				from beacon_log
+				where edgenodeid = any ($1::int[])
+				and beaconid = $2 and datetime > $3 and datetime < $4
+				order by time_bracket, datetime, edgenodeid;
+		`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since,
+			requestData.Before, requestData.BracketSeconds)
+		if err != nil {
+			log.Infof("Error getting query results", err)
+			http.Error(w, "Server failure", 500)
+			return
+		}
+		defer rows.Close()
 
-	switch requestData.Filter {
-	case "average":
-		results = filterAverage(results)
-	default:
-		log.Infof("Received invalid request, unknown filter")
-		http.Error(w, "Invalid request", 400)
-		return
-	}
+		var results []result
 
-	// Resort incase filtering has changed sorting order
+		for rows.Next() {
+			var row result
+			if err = rows.Scan(&row.Bracket, &row.Datetime,
+				&row.Edge, &row.Rssi); err != nil {
+				log.Infof("Error scanning rows", err)
+				http.Error(w, "Server failure", 500)
+				return
+			}
+			results = append(results, row)
+		}
 
-// We don't use the power anymore, just the model
-//	power, err := getDBMForBeacon(requestData.Beacon)
-//	if err != nil {
-//		log.Infof("Error fetching beacon power by id", err)
-//		http.Error(w, "Server failure", 500)
-//		return
-//	}
-	log.Debugf("Results into trilat: %#v", results)
-	trilatresults := trilat(results, requestData.EdgeLocations, db)
-	log.Debugf("Results out of trilat: %#v", trilatresults)
-	for i, _ := range trilatresults {
-		trilatresults[i].Beacon = requestData.Beacon
-	}
+		switch requestData.Filter {
+		case "average":
+			results = filterAverage(results)
+		default:
+			log.Infof("Received invalid request, unknown filter")
+			http.Error(w, "Invalid request", 400)
+			return
+		}
 
-	encoder := json.NewEncoder(w)
-	if err = encoder.Encode(trilatresults); err != nil {
-		log.Infof("Failed to encode results", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
+		// Resort incase filtering has changed sorting order
+
+	// We don't use the power anymore, just the model
+	//	power, err := getDBMForBeacon(requestData.Beacon)
+	//	if err != nil {
+	//		log.Infof("Error fetching beacon power by id", err)
+	//		http.Error(w, "Server failure", 500)
+	//		return
+	//	}
+		log.Debugf("Results into trilat: %#v", results)
+		trilatresults := trilat(results, requestData.EdgeLocations, db)
+		log.Debugf("Results out of trilat: %#v", trilatresults)
+		for i, _ := range trilatresults {
+			trilatresults[i].Beacon = requestData.Beacon
+		}
+
+		encoder := json.NewEncoder(w)
+		if err = encoder.Encode(trilatresults); err != nil {
+			log.Infof("Failed to encode results", err)
+			http.Error(w, "Server failure", 500)
+			return
+		}
+	})
 }
 
-func beaconShortHistory(w http.ResponseWriter, req *http.Request) {
-	decoder := json.NewDecoder(req.Body)
-	requestData := struct {
-		Edges  []int
-		Beacon int
-		Since  string
-	}{}
-	if err := decoder.Decode(&requestData); err != nil {
-		log.Infof("Received invalid request", err)
-		http.Error(w, "Invalid request", 400)
-		return
-	}
-	dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
-	db, err := dbconfig.openDB()
-	if err != nil {
-		log.Infof("Error opening DB", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
-	defer db.Close()
-	rows, err := db.Query(`
-		select datetime, edgenodeid, rssi
-		from beacon_log
-		where edgenodeid = any($1::int[]) 
-		and beaconid = $2 
-		and datetime > $3
-		order by datetime
-	`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since)
-	if err != nil {
-		log.Infof("Error getting query results", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
-	defer rows.Close()
-
-	type result struct {
-		Datetime string
-		Edge     int
-		Rssi     int
-	}
-
-	var results []result
-
-	for rows.Next() {
-		var row result
-		var date time.Time
-		if err = rows.Scan(&date, &row.Edge, &row.Rssi); err != nil {
-			log.Infof("Error scanning rows", err)
+func beaconShortHistory() http.Handler {
+	return http.HandlerFunc(func (w http.ResponseWriter, req *http.Request) {
+		decoder := json.NewDecoder(req.Body)
+		requestData := struct {
+			Edges  []int
+			Beacon int
+			Since  string
+		}{}
+		if err := decoder.Decode(&requestData); err != nil {
+			log.Infof("Received invalid request %s", err)
+			http.Error(w, "Invalid request", 400)
+			return
+		}
+		dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
+		db, err := dbconfig.openDB()
+		if err != nil {
+			log.Infof("Error opening DB", err)
 			http.Error(w, "Server failure", 500)
 			return
 		}
-		row.Datetime = date.Format("2006-01-02T15:04:05")
-		results = append(results, row)
-	}
+		defer db.Close()
+		rows, err := db.Query(`
+			select datetime, edgenodeid, rssi
+			from beacon_log
+			where edgenodeid = any($1::int[]) 
+			and beaconid = $2 
+			and datetime > $3
+			order by datetime
+		`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since)
+		if err != nil {
+			log.Infof("Error getting query results", err)
+			http.Error(w, "Server failure", 500)
+			return
+		}
+		defer rows.Close()
 
-	encoder := json.NewEncoder(w)
-	if err = encoder.Encode(results); err != nil {
-		log.Infof("Failed to encode results", err)
-		http.Error(w, "Server failure", 500)
-		return
-	}
+		type result struct {
+			Datetime string
+			Edge     int
+			Rssi     int
+		}
+
+		var results []result
+
+		for rows.Next() {
+			var row result
+			var date time.Time
+			if err = rows.Scan(&date, &row.Edge, &row.Rssi); err != nil {
+				log.Infof("Error scanning rows", err)
+				http.Error(w, "Server failure", 500)
+				return
+			}
+			row.Datetime = date.Format("2006-01-02T15:04:05")
+			results = append(results, row)
+		}
+
+		encoder := json.NewEncoder(w)
+		if err = encoder.Encode(results); err != nil {
+			log.Infof("Failed to encode results", err)
+			http.Error(w, "Server failure", 500)
+			return
+		}
+	})
 }
 
 func trilatCollect(tempresults []result, edgeloc [][]float64, db *sql.DB) locationResults {
@@ -347,8 +351,6 @@ func MetricStart(metrics *MetricsParameters) {
 	mp = *metrics
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/history/short", beaconShortHistory)
-	mux.HandleFunc("/history/trilateration", beaconTrilateration)
 
 	wa, err := webauth.OpenAuthDB(mp.DriverName, mp.DataSourceName)
 	if err != nil {
@@ -362,6 +364,10 @@ func MetricStart(metrics *MetricsParameters) {
 	}
 	mux.Handle("/auth/login", wc.AuthAndSetCookie())
 
+	mux.Handle("/history/short", wc.CheckCookie(true)(beaconShortHistory()))
+	mux.Handle("/history/trilateration", wc.CheckCookie(true)(beaconTrilateration()))
+
+	//TODO(brad) this should be parameteried, insecure as is
 	handler := cors.Default().Handler(mux)
 	// Logging
 	log.SetLevel(log.DebugLevel)
