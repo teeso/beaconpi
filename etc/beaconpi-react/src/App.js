@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import './bootstrap/css/bootstrap.min.css';
+import './bootstrap/css/bootstrap-theme.min.css';
 import { Grid, Row, Col, Navbar, Nav, NavItem} from 'react-bootstrap';
 
 class App extends Component {
@@ -13,9 +15,11 @@ class App extends Component {
               Beaconpi
             </Navbar.Brand>
           </Navbar.Header>
-          <NavItem eventKey={1} href="#">
-            Login
-          </NavItem>
+          <Nav>
+            <NavItem eventKey={1} href="#">
+              Login
+            </NavItem>
+          </Nav>
         </Navbar>
 
       </div>
