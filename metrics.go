@@ -259,13 +259,16 @@ func trilatCollect(tempresults []result, edgeloc [][]float64, db *sql.DB) locati
 		edges = append(edges, r.Edge)
 		distances = append(distances, dist)
 	}
-	loc, conf := task.SolveTrilat3()
+	loc, err := task.SolveTrilat3()
+	if err != nil {
+		log.Panicf("Error occured in Trilat3 %s", err)
+	}
 	return locationResults{
 		Bracket:    tempresults[0].Bracket,
 		Loc:        loc,
 		Edge:       edges,
 		Distance:   distances,
-		Confidence: conf,
+		Confidence: 0,
 	}
 }
 
