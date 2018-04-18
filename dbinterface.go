@@ -22,7 +22,7 @@ import (
 	"encoding/hex"
 	"errors"
 	_ "github.com/lib/pq"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
@@ -184,6 +184,14 @@ func dbGetControl(packet *BeaconLogPacket, db *sql.DB) (string, error) {
 		return "", errors.New("Failed to get control because: " + err.Error())
 	}
 	return strconv.Itoa(id) + "\n" + data, nil
+}
+
+func updateEdgeLastUpdate(uuid Uuid, db *sql.DB) {
+	_, err := db.Exec(`update edge_node set lastupdate = current_timestamp
+			where uuid = $1`, uuid.String())
+	if err != nil {
+		log.Infof("Failed to update edge_node lastupdate to current_timestamp %s", err)
+	}
 }
 
 // Returns the ID of the edge

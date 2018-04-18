@@ -1,23 +1,17 @@
 import React, { Component } from 'react';
 import './App.css';
+import { QuickStat } from './QuickStat.js';
+import { Plot } from './TimeSeries.js';
+import { FieldGroup } from './FormUtils.js';
+import { AdminUserAdd, AdminUserMod, AdminModBeacon, AdminModEdge } from './AdminScreens.js';
 import './bootstrap/css/bootstrap.min.css';
 import './bootstrap/css/bootstrap-theme.min.css';
 import { decorate, observable } from "mobx";
 import { observer } from "mobx-react";
 import * as cfg from "./config.js";
 
-import { Grid, Row, Col, Navbar, Nav, NavItem, FormGroup,
-  ControlLabel, FormControl, HelpBlock, Button } from 'react-bootstrap';
-
-function FieldGroup({ id, label, help, ...props }) {
-  return (
-    <FormGroup controlId={id}>
-      <ControlLabel>{label}</ControlLabel>
-      <FormControl {...props} />
-      {help && <HelpBlock>{help}</HelpBlock>}
-    </FormGroup>
-  );
-}
+import { Grid, Row, Col, Navbar, Nav, NavItem, NavDropdown,
+  MenuItem, Button } from 'react-bootstrap';
 
 class Home extends Component {
   //constructor(props, context) {
@@ -25,14 +19,87 @@ class Home extends Component {
   //}
 
   render() {
+    if (!this.props.loginData.loggedin) {
+      return (
+        <Row> <Col md={4}>
+          <p> Welcome to Beaconpi, You're not logged in so we can't
+          show you anything. Click login on the top in order to see some data.
+          </p>
+        </Col> </Row>
+      )
+    }
     return (
+      <div>
       <Row>
         <Col md={4}>
-          Welcome home
+          <p>Welcome home {this.props.loginData.displayName}, here is the system
+          status</p>
         </Col>
       </Row>
+      <QuickStat/>
+      </div>
     )
   }
+}
+
+function modalError(etext) {
+  console.log(etext);
+}
+
+function updateLogin(loginData) {
+  fetch(cfg.app + "/auth/user", {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+    credentials: 'include',
+  }).then((r) => r.json())
+  .then((rj) => {
+    if ('Error' in rj) {
+      modalError(rj.Error);
+      loginData.displayName = "";
+      loginData.email = "";
+      loginData.loggedin = false;
+      //TODO(brad) we should perhaps force logout
+    }
+    if ('Success' in rj) {
+      loginData.displayName = rj.DisplayName;
+      loginData.email = rj.Email;
+      loginData.loggedin = true;
+    }
+  })
+  .catch((error) => {
+      modalError("Error receiving confirmation from server");
+  });
+}
+
+function doLogout(loginData) {
+  fetch(cfg.app + "/auth/logout", {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+    }),
+  }).then((r) => r.json())
+  .then((rj) => {
+    if ('Error' in rj) {
+      modalError(rj.Error);
+      loginData.displayName = "";
+      loginData.email = "";
+      loginData.loggedin = false;
+    }
+    if ('Success' in rj) {
+      loginData.displayName = "";
+      loginData.email = "";
+      loginData.loggedin = false;
+    }
+  })
+  .catch((error) => {
+      modalError("Error receiving confirmation from server");
+  });
 }
 
 class LoginData {
@@ -81,6 +148,7 @@ class Login extends Component {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: JSON.stringify({
         "Email": this.state.valueEmail,
         "Passphrase": this.state.valuePassword
@@ -131,10 +199,12 @@ class Login extends Component {
             <FieldGroup
               id="formControlPassphrase" type="password"
               label="Passphrase" placeholder="Enter Passphrase"
+              value={this.state.valuePassword}
               onChange={this.handleChangePassword}
               disabled={this.state.submitted}
             />
-            <Button bsStyle="success" 
+            <Button bsStyle="success"
+              type="submit"
               disabled={!enableSubmit || this.state.submitted}
               onClick={this.handleSubmit}
             >{this.state.submitted ? "Checking" : "Login"}</Button>
@@ -145,21 +215,56 @@ class Login extends Component {
   }
 })
 
+var App = observer(
 class App extends Component {
   constructor(props, context) {
     super(props, context);
+    this.handleLogout = this.handleLogout.bind(this);
+    this.handleNav = this.handleNav.bind(this);
+    var landing = "home";
+    if (window.location.hash) {
+      landing = window.location.hash.substring(1).toLowerCase();
+    }
     this.state = {
-      view: "login"
+      view: landing,
     };
+    updateLogin(loginData)
   }
+
+  handleLogout(e) {
+  }
+
+  handleNav(eid) {
+    switch (eid) {
+      case 1: this.setState({view: "home"}); break;
+      case 2: this.setState({view: "plot"}); break;
+      case 20.1: this.setState({view: "useradd"}); break;
+      case 20.2: this.setState({view: "usermod"}); break;
+      case 20.3: this.setState({view: "modbeacon"}); break;
+      case 20.4: this.setState({view: "modedge"}); break;
+      case 50: this.setState({view: "login"}); break;
+      case 51: doLogout(loginData); break;
+      default:
+    }
+  }
+
   render() {
     var view;
-    if (this.state.view === "login") {
-      view = <Login loginData={loginData} />
-    } else if (this.state.view === "home") {
-      view = <Home loginData={loginData} />
+    switch (this.state.view) {
+      case "login": view = <Login loginData={loginData} />; break;
+      case "home": view = <Home loginData={loginData} />; break;
+      case "plot": view = <Plot />; break;
+      case "useradd": view = <AdminUserAdd />; break;
+      case "usermod": view = <AdminUserMod />; break;
+      case "modbeacon": view = <AdminModBeacon />; break;
+      case "modedge": view = <AdminModEdge />; break;
+      default:
     }
 
+    var loginopt = <NavItem eventKey={50} href="#Login">Login</NavItem>;
+    if (loginData.loggedin) {
+      loginopt = <NavItem eventKey={51} href="#">Logout</NavItem>
+    }
 
     return (
       <div className="App">
@@ -169,8 +274,22 @@ class App extends Component {
               Beaconpi
             </Navbar.Brand>
           </Navbar.Header>
-          <Nav>
-            <NavItem eventKey={1} href="#Login">Login</NavItem>
+          <Nav onSelect={this.handleNav}>
+            <NavItem eventKey={1} href="#Home">Home</NavItem>
+          </Nav>
+            {loginData.loggedin && <Nav onSelect={this.handleNav}>
+              <NavItem eventKey={2} href="#TimeSeries">Plot</NavItem>
+              <NavItem eventKey={3} href="#Lateration">Lateration</NavItem>
+              <NavItem eventKey={4} href="#Export">Export</NavItem>
+              <NavDropdown eventKey={20} title="Admin" id="basic-nav-dropdown">
+                <MenuItem href="#UserAdd" eventKey={20.1}>User Add</MenuItem>
+                <MenuItem href="#UserMod" eventKey={20.2}>User Modify</MenuItem>
+                <MenuItem href="#ModBeacon" eventKey={20.3}>Modify Beacons</MenuItem>
+                <MenuItem href="#ModEdge" eventKey={20.4}>Modify Edges</MenuItem>
+              </NavDropdown>
+            </Nav>}
+          <Nav pullRight onSelect={this.handleNav}>
+            {loginopt}
           </Nav>
         </Navbar>
         <Grid>
@@ -179,7 +298,7 @@ class App extends Component {
       </div>
     );
   }
-}
+})
 
 var loginData = new LoginData();
 

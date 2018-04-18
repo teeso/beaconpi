@@ -182,13 +182,21 @@ func beaconShortHistory() http.Handler {
 		requestData := struct {
 			Edges  []int
 			Beacon int
+			// Datetime formatted with isoUTC datetime
 			Since  string
+			Before string
 		}{}
 		if err := decoder.Decode(&requestData); err != nil {
 			log.Infof("Received invalid request %s", err)
 			http.Error(w, "Invalid request", 400)
 			return
 		}
+		// Backwards compat for tools that didn't use "Before"
+		if (requestData.Before == "") {
+			// Gosh I hope no one is using this in 2050
+			requestData.Before = "2050-01-01T01:00:00Z"
+		}
+
 		dbconfig := dbHandler{mp.DriverName, mp.DataSourceName}
 		db, err := dbconfig.openDB()
 		if err != nil {
@@ -197,14 +205,16 @@ func beaconShortHistory() http.Handler {
 			return
 		}
 		defer db.Close()
+
+
 		rows, err := db.Query(`
 			select datetime, edgenodeid, rssi
 			from beacon_log
 			where edgenodeid = any($1::int[]) 
 			and beaconid = $2 
-			and datetime > $3
+			and datetime > $3 and datetime < $4
 			order by datetime
-		`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since)
+		`, pq.Array(requestData.Edges), requestData.Beacon, requestData.Since, requestData.Before)
 		if err != nil {
 			log.Infof("Error getting query results", err)
 			http.Error(w, "Server failure", 500)
@@ -366,12 +376,22 @@ func MetricStart(metrics *MetricsParameters) {
 		RedirectHome: "http://example.com/home",
 	}
 	mux.Handle("/auth/login", wc.AuthAndSetCookie())
+	mux.Handle("/auth/user", wc.ReturnUserForCookie())
+	mux.Handle("/auth/logout", wc.ClearCookie())
 
-	mux.Handle("/history/short", wc.CheckCookie(true)(beaconShortHistory()))
-	mux.Handle("/history/trilateration", wc.CheckCookie(true)(beaconTrilateration()))
+	cookieAction := webauth.FAIL_COOKIE_UNAUTHORIZED
+	mux.Handle("/stats/quick", wc.CheckCookie(cookieAction)(quickStats()))
+
+	mux.Handle("/history/short", wc.CheckCookie(cookieAction)(beaconShortHistory()))
+	mux.Handle("/history/trilateration", wc.CheckCookie(cookieAction)(beaconTrilateration()))
 
 	//TODO(brad) this should be parameteried, insecure as is
-	handler := cors.Default().Handler(mux)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"http://brad-ardev.localdomain:3000"},
+		AllowCredentials: true,
+	})
+	handler := c.Handler(mux)
+
 	// Logging
 	log.SetLevel(log.DebugLevel)
 	customFormatter := new(log.TextFormatter)
@@ -379,6 +399,6 @@ func MetricStart(metrics *MetricsParameters) {
 	customFormatter.FullTimestamp = true
 	log.SetFormatter(customFormatter)
 	// Start
-        log.Infof("Starting metrics server on %v", metrics.Port)
+	log.Infof("Starting metrics server on %v", metrics.Port)
 	log.Fatal(http.ListenAndServe(":"+metrics.Port, handler))
 }

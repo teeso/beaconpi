@@ -180,6 +180,8 @@ func handleConnection(conn net.Conn) {
 			writeResponseAndClose(conn, &resp, true)
 			return
 		}
+		// Update the time of the given edge that we have confirmed
+		updateEdgeLastUpdate(message.Uuid, db)
 		if err = dbInsertControlLog(edgeid, &message, db); err != nil {
 			log.Printf("Error occured %s", err)
 			resp.Flags |= RESPONSE_INTERNAL_FAILURE
