@@ -150,16 +150,6 @@ func beaconTrilateration() http.Handler {
 			http.Error(w, "Invalid request", 400)
 			return
 		}
-
-		// Resort incase filtering has changed sorting order
-
-	// We don't use the power anymore, just the model
-	//	power, err := getDBMForBeacon(requestData.Beacon)
-	//	if err != nil {
-	//		log.Infof("Error fetching beacon power by id", err)
-	//		http.Error(w, "Server failure", 500)
-	//		return
-	//	}
 		log.Debugf("Results into trilat: %#v", results)
 		trilatresults := trilat(results, requestData.EdgeLocations, db)
 		log.Debugf("Results out of trilat: %#v", trilatresults)
@@ -375,11 +365,19 @@ func MetricStart(metrics *MetricsParameters) {
 		RedirectLogin: "http://example.com/redirect",
 		RedirectHome: "http://example.com/home",
 	}
+	cookieAction := webauth.FAIL_COOKIE_UNAUTHORIZED
+
 	mux.Handle("/auth/login", wc.AuthAndSetCookie())
 	mux.Handle("/auth/user", wc.ReturnUserForCookie())
 	mux.Handle("/auth/logout", wc.ClearCookie())
+	mux.Handle("/auth/allusers", wc.CheckCookie(cookieAction)(wc.GetUsers()))
+	mux.Handle("/auth/moduser", wc.CheckCookie(cookieAction)(wc.ModUser()))
 
-	cookieAction := webauth.FAIL_COOKIE_UNAUTHORIZED
+	mux.Handle("/config/modbeacon", wc.CheckCookie(cookieAction)(ModBeacon()))
+	mux.Handle("/config/modedge", wc.CheckCookie(cookieAction)(ModEdge()))
+	mux.Handle("/config/allbeacons", wc.CheckCookie(cookieAction)(GetBeacons()))
+	mux.Handle("/config/alledges", wc.CheckCookie(cookieAction)(GetEdges()))
+	
 	mux.Handle("/stats/quick", wc.CheckCookie(cookieAction)(quickStats()))
 
 	mux.Handle("/history/short", wc.CheckCookie(cookieAction)(beaconShortHistory()))
@@ -387,7 +385,7 @@ func MetricStart(metrics *MetricsParameters) {
 
 	//TODO(brad) this should be parameteried, insecure as is
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://brad-ardev.localdomain:3000"},
+		AllowedOrigins: []string{"http://localhost:3000"},
 		AllowCredentials: true,
 	})
 	handler := c.Handler(mux)

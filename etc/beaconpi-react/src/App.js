@@ -3,7 +3,7 @@ import './App.css';
 import { QuickStat } from './QuickStat.js';
 import { Plot } from './TimeSeries.js';
 import { FieldGroup } from './FormUtils.js';
-import { AdminUserAdd, AdminUserMod, AdminModBeacon, AdminModEdge } from './AdminScreens.js';
+import { AdminUserMod, AdminModBeacon, AdminModEdge } from './AdminScreens.js';
 import './bootstrap/css/bootstrap.min.css';
 import './bootstrap/css/bootstrap-theme.min.css';
 import { decorate, observable } from "mobx";
@@ -11,7 +11,7 @@ import { observer } from "mobx-react";
 import * as cfg from "./config.js";
 
 import { Grid, Row, Col, Navbar, Nav, NavItem, NavDropdown,
-  MenuItem, Button } from 'react-bootstrap';
+  MenuItem, Button, Alert } from 'react-bootstrap';
 
 class Home extends Component {
   //constructor(props, context) {
@@ -129,7 +129,7 @@ class Login extends Component {
       valueEmail: '',
       valuePassword: '',
       submitted: false,
-      errortext: false
+      errortext: "",
     };
   }
 
@@ -209,6 +209,8 @@ class Login extends Component {
               onClick={this.handleSubmit}
             >{this.state.submitted ? "Checking" : "Login"}</Button>
           </form>
+          {this.state.errortext !== "" && 
+            <Alert bsStyle="danger">{this.state.errortext}</Alert>}
         </Col>
       )
     }
@@ -238,10 +240,9 @@ class App extends Component {
     switch (eid) {
       case 1: this.setState({view: "home"}); break;
       case 2: this.setState({view: "plot"}); break;
-      case 20.1: this.setState({view: "useradd"}); break;
-      case 20.2: this.setState({view: "usermod"}); break;
-      case 20.3: this.setState({view: "modbeacon"}); break;
-      case 20.4: this.setState({view: "modedge"}); break;
+      case 20.1: this.setState({view: "usermod"}); break;
+      case 20.2: this.setState({view: "modbeacon"}); break;
+      case 20.3: this.setState({view: "modedge"}); break;
       case 50: this.setState({view: "login"}); break;
       case 51: doLogout(loginData); break;
       default:
@@ -254,7 +255,6 @@ class App extends Component {
       case "login": view = <Login loginData={loginData} />; break;
       case "home": view = <Home loginData={loginData} />; break;
       case "plot": view = <Plot />; break;
-      case "useradd": view = <AdminUserAdd />; break;
       case "usermod": view = <AdminUserMod />; break;
       case "modbeacon": view = <AdminModBeacon />; break;
       case "modedge": view = <AdminModEdge />; break;
@@ -282,10 +282,9 @@ class App extends Component {
               <NavItem eventKey={3} href="#Lateration">Lateration</NavItem>
               <NavItem eventKey={4} href="#Export">Export</NavItem>
               <NavDropdown eventKey={20} title="Admin" id="basic-nav-dropdown">
-                <MenuItem href="#UserAdd" eventKey={20.1}>User Add</MenuItem>
-                <MenuItem href="#UserMod" eventKey={20.2}>User Modify</MenuItem>
-                <MenuItem href="#ModBeacon" eventKey={20.3}>Modify Beacons</MenuItem>
-                <MenuItem href="#ModEdge" eventKey={20.4}>Modify Edges</MenuItem>
+                <MenuItem href="#UserMod" eventKey={20.1}>Modify Users</MenuItem>
+                <MenuItem href="#ModBeacon" eventKey={20.2}>Modify Beacons</MenuItem>
+                <MenuItem href="#ModEdge" eventKey={20.3}>Modify Edges</MenuItem>
               </NavDropdown>
             </Nav>}
           <Nav pullRight onSelect={this.handleNav}>

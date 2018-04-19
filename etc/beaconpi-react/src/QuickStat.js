@@ -45,14 +45,18 @@ class QuickStat extends Component {
   }
 
   render() {
-    var iedge = this.state.offlineEdges.map((r) => {
-      return (<tr key={r.Title}><td>{r.Title}</td><td>{r.Room}</td>
-      <td>{r.Location}</td><td>{r.Description}</td></tr>);
-    });
-    var ibeacon = this.state.offlineBeacons.map((r) => {
-      return (<tr key={r.Uuid}><td>{r.Label}</td><td>{r.Uuid}</td>
-      <td>{r.Major}</td><td>{r.Minor}</td></tr>);
-    });
+    if (this.state.offlineEdges) {
+      var iedge = this.state.offlineEdges.map((r) => {
+        return (<tr key={r.Title}><td>{r.Title}</td><td>{r.Room}</td>
+        <td>{r.Location}</td><td>{r.Description}</td></tr>);
+      });
+    }
+    if (this.state.offlineBeacons) {
+      var ibeacon = this.state.offlineBeacons.map((r) => {
+        return (<tr key={r.Uuid}><td>{r.Label}</td><td>{r.Uuid}</td>
+        <td>{r.Major}</td><td>{r.Minor}</td></tr>);
+      });
+    }
     if (this.state.hasData) {
       return (
         <h3>"Loading data!"</h3>

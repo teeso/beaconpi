@@ -1,2 +1,2 @@
-export const home = "http://brad-ardev.localdomain";
-export const app = "http://brad-ardev.localdomain:36969";
+export const home = "http://localhost";
+export const app = "http://localhost:36969";

@@ -27,9 +27,9 @@ type PathmodelParams struct {
 func getModelByEdge(edge int, db*sql.DB) (PathmodelParams, error) {
 	var params PathmodelParams
 	err := db.QueryRow(`
-		select a.bias, a.gamma
-		from models a, edge_node b
-		where b.id = $1 and b.model = a.id
+		select bias, gamma
+		from models
+		where id = $1 
 	`, edge).Scan(&params.Bias, &params.Gamma)
 	if err != nil {
 		return params, err
@@ -41,23 +41,10 @@ var modelcache map[int]PathmodelParams
 var modellock sync.Mutex
 
 func distanceModel(rssi, edge int, db *sql.DB) (float64, error) {
-	modellock.Lock()
-	defer modellock.Unlock()
-
-	if modelcache == nil {
-		modelcache = make(map[int]PathmodelParams)
-	}
-	// Check if the cache has the param
-// TODO(brad) after done testing use this for efficiency
-//	if v, ok := modelcache[edge]; ok {
-//		return PathLoss(float64(rssi), v.Bias, v.Gamma), nil
-//	}
-	// Look it up
 	v, err := getModelByEdge(edge, db)
 	if err != nil {
 		return 0.0, errors.New("Failed to get model from DB " +
 			err.Error())
 	}
-	modelcache[edge] = v
 	return PathLoss(float64(rssi), v.Bias, v.Gamma), nil
 }
