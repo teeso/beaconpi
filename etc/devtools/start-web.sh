@@ -4,4 +4,4 @@ source environment.cfg
 
 "${BINDIR}metricsserv" "--db-driver-name=postgres" \
   --db-datasource-name="user=${DBUSER} dbname=${DBNAME} sslmode=disable" \
-  --port=36969
+  --port=${METRICSPORT}

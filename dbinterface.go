@@ -54,7 +54,6 @@ func dbAddLogsForBeacons(pack *BeaconLogPacket, edgeid int, db *sql.DB) error {
 		// TODO(brad) additional error logging here for ids that don't exist
 		data[i].Beaconid = beaconids[logv.BeaconIndex]
 	}
-	log.Printf("Inserting %d records", len(data))
 	for _, row := range data {
 		rows, err := db.Query(`
 			insert into beacon_log
@@ -67,7 +66,9 @@ func dbAddLogsForBeacons(pack *BeaconLogPacket, edgeid int, db *sql.DB) error {
 		}
 		rows.Close()
 	}
-	log.Printf("Completed inserting %d records", len(data))
+	if len(data) != 0 {
+		log.Printf("Completed inserting %d records", len(data))
+	}
 	return nil
 }
 

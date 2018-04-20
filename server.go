@@ -20,7 +20,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"io/ioutil"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"os"
 	//"database/sql"
@@ -55,7 +55,12 @@ func GetFlags() (out ServerConfig) {
 }
 
 func StartServer(x509cert, x509key, drivername, dsn string, end chan struct{}) {
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	// Logging
+	log.SetLevel(log.DebugLevel)
+	customFormatter := new(log.TextFormatter)
+	customFormatter.TimestampFormat = "2006-01-02 15:04:05"
+	customFormatter.FullTimestamp = true
+	log.SetFormatter(customFormatter)
 
 	db = new(dbHandler)
 	db.Drivername = drivername
@@ -116,7 +121,6 @@ func handleConnection(conn net.Conn) {
 	// TODO(brad)  We use ioutil.ReadAll here but in the future we should use
 	// bytes.Buffer.ReadFrom with handling to prevent a buffer over the max size
 	buff, err := ioutil.ReadAll(conn)
-	log.Println("Read from connection")
 	var resp BeaconResponsePacket
 	resp.Flags = CURRENT_VERSION
 	if err != nil {
@@ -180,8 +184,6 @@ func handleConnection(conn net.Conn) {
 			writeResponseAndClose(conn, &resp, true)
 			return
 		}
-		// Update the time of the given edge that we have confirmed
-		updateEdgeLastUpdate(message.Uuid, db)
 		if err = dbInsertControlLog(edgeid, &message, db); err != nil {
 			log.Printf("Error occured %s", err)
 			resp.Flags |= RESPONSE_INTERNAL_FAILURE
@@ -232,7 +234,6 @@ func handleConnection(conn net.Conn) {
 }
 
 func handlePacket(pack *BeaconLogPacket) {
-	log.Println("Handling packet")
 	var edgeid int
 	db, err := db.openDB()
 	if err != nil {
@@ -246,6 +247,8 @@ func handlePacket(pack *BeaconLogPacket) {
 		log.Printf("Error occured edgeid \"%s\" was not found in db: %s", pack.Uuid, err)
 		return
 	}
+	// Update the time of the given edge that we have confirmed
+	updateEdgeLastUpdate(pack.Uuid, db)
 	log.Println("Packet from ", pack.Uuid, edgeid)
 	if err = dbAddLogsForBeacons(pack, edgeid, db); err != nil {
 		log.Println("Error when checking in logs for beacon", err)

@@ -90,7 +90,7 @@ func quickStats() http.Handler {
 		var inactivebeacons []ibeacons
 		rows, err := db.Query(`
 			select label, uuid, major, minor from ibeacons 
-			where id in (
+			where id not in (
 				select distinct i.beaconid from (
 					select beaconid, datetime from beacon_log where 
 						datetime < current_timestamp - interval '00:10:00' order by datetime desc) as i)
