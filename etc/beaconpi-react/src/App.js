@@ -278,7 +278,7 @@ class App extends Component {
             <NavItem eventKey={1} href="#Home">Home</NavItem>
           </Nav>
             {loginData.loggedin && <Nav onSelect={this.handleNav}>
-              <NavItem eventKey={2} href="#TimeSeries">Plot</NavItem>
+              <NavItem eventKey={2} href="#Plot">Plot</NavItem>
               <NavItem eventKey={3} href="#Lateration">Lateration</NavItem>
               <NavItem eventKey={4} href="#Export">Export</NavItem>
               <NavDropdown eventKey={20} title="Admin" id="basic-nav-dropdown">

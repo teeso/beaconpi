@@ -1,7 +1,6 @@
 import React, { Component } from 'react';
 import * as cfg from './config.js';
 import { FieldGroup } from './FormUtils.js';
-import hex64 from 'hex64';
 
 import { Row, Col, Button, Checkbox, FormGroup, ControlLabel, FormControl,
   Alert } from 'react-bootstrap';
