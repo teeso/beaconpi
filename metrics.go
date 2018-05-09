@@ -17,6 +17,7 @@ type MetricsParameters struct {
 	Port           string
 	DriverName     string
 	DataSourceName string
+	AllowedOrigin   string
 }
 
 type locationResults struct {
@@ -361,9 +362,8 @@ func MetricStart(metrics *MetricsParameters) {
 	}
 	wc := webauth.AuthDBCookie{
 		Authdb: wa,
-		// TODO(brad) parameterize this)
-		RedirectLogin: "http://example.com/redirect",
-		RedirectHome: "http://example.com/home",
+		RedirectLogin: "",
+		RedirectHome: "",
 	}
 	cookieAction := webauth.FAIL_COOKIE_UNAUTHORIZED
 
@@ -377,15 +377,13 @@ func MetricStart(metrics *MetricsParameters) {
 	mux.Handle("/config/modedge", wc.CheckCookie(cookieAction)(ModEdge()))
 	mux.Handle("/config/allbeacons", wc.CheckCookie(cookieAction)(GetBeacons()))
 	mux.Handle("/config/alledges", wc.CheckCookie(cookieAction)(GetEdges()))
-	
 	mux.Handle("/stats/quick", wc.CheckCookie(cookieAction)(quickStats()))
 
 	mux.Handle("/history/short", wc.CheckCookie(cookieAction)(beaconShortHistory()))
 	mux.Handle("/history/trilateration", wc.CheckCookie(cookieAction)(beaconTrilateration()))
 
-	//TODO(brad) this should be parameteried, insecure as is
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"http://localhost:3000"},
+		AllowedOrigins: []string{mp.AllowedOrigin},
 		AllowCredentials: true,
 	})
 	handler := c.Handler(mux)
